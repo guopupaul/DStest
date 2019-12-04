@@ -1,8 +1,8 @@
-# Exploring the DOJCS prisoner statistics 2007-2018
+# Exploring the DOJCS prisoner statistics 2007-2018 - Prisoner Age
 ## Introduction
 Corrections Victoria has published its Annual Prisoner Statistical Profile 2007-2018 on the DOJCS website <https://www.corrections.vic.gov.au/publications-manuals-and-statistics/annual-prisoner-statistical-profile-2006-07-to-2017-18>. This consists of tables spread across 36 sheets of an Excel workbook. The profile is not in a tidy data format. The profile aggregates and summarises data in many dimensions but it does not provide any visualisation or analysis.
 
-## Prisoner Age
+## Cleaning the data
 Data regarding prisoner age is in Table 1.5. The code blocks below tidy up the male and female data separately and then join them into one tidy data tibble showing prisoner age across the time period.
 
 Here is the male data read in:
@@ -42,11 +42,19 @@ The code below joins male and female tibbles together:
 ```{r}
 tidy_male_prisoner_age <- tidy_male_prisoner_age %>% mutate(gender = "Male")
 tidy_female_prisoner_age <- tidy_female_prisoner_age %>% mutate(gender = "Female")
+#join the two tibbles
 tidy_prisoner_age <- tidy_male_prisoner_age %>%
 bind_rows(tidy_female_prisoner_age) %>%
 arrange(year)
-tidy_prisoner_age
+#consistent variable names and classes
+tidy_prisoner_age <- tidy_prisoner_age %>% 
+mutate_all(list(~str_replace(.,"Under 20", "0-20" ))) %>% 
+mutate_all(list(~str_replace(.,"60 and over", "60-150" ))) 
+tidy_prisoner_age$number_of_prisoners <- as.numeric(tidy_prisoner_age$number_of_prisoners)
+tidy_prisoner_age$Age <- as.factor(tidy_prisoner_age$Age)
+tidy_prisoner_age$gender <- as.factor(tidy_prisoner_age$gender)
 ```
+##Visualising the data
 
 
 
