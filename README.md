@@ -58,8 +58,6 @@ mutate_all(list(~str_replace(.,"60 and over", "60-150" )))
 col_order <- c("Age", "gender", "year", "number_of_prisoners")
 tidy_prisoner_age <- tidy_prisoner_age[, col_order]
 tidy_prisoner_age$number_of_prisoners <- as.numeric(tidy_prisoner_age$number_of_prisoners)
-tidy_prisoner_age$Age <- as.factor(tidy_prisoner_age$Age)
-tidy_prisoner_age$gender <- as.factor(tidy_prisoner_age$gender)
 tidy_prisoner_age
 ```
 ## Cleaning the data - Imprisonment rate
@@ -105,16 +103,31 @@ arrange(year)
 #consistent variable names, classes, and column order for presentation
 tidy_prisoner_rate <- tidy_prisoner_rate %>% 
 mutate_all(list(~str_replace(.,"Under 20", "0-20" ))) %>% 
-mutate_all(list(~str_replace(.,"65 and over", "65-150" ))) 
-col_order <- c("Age", "gender", "year", "rate_per_100,000")
+mutate_all(list(~str_replace(.,"65 and over", "60-150" ))) 
+col_order <- c("Age", "gender", "year", "rate_per_100K")
 tidy_prisoner_rate <- tidy_prisoner_rate[, col_order]
 tidy_prisoner_rate$rate_per_100K <- as.numeric(tidy_prisoner_rate$rate_per_100K)
-tidy_prisoner_rate$Age <- as.factor(tidy_prisoner_rate$Age)
-tidy_prisoner_rate$gender <- as.factor(tidy_prisoner_rate$gender)
 tidy_prisoner_rate
 ```
 ## Consolidating Age and Imprisonment rate data
-For reasons unknown, the age bin values in "Prisoner Age"" stop at 60 and stop at 65 in "Imprisonment Rate".
+For reasons unknown, the age bin values in "Prisoner Age"" stop at 60 and stop at 65 in "Imprisonment Rate".To consolidate this data alongside the age data, we need to combine the "60-64"" and "65 and Over" rates into a comparable "60-150" bin.
+```{r}
+#select values to be combined
+f <- tidy_prisoner_rate %>% filter(Age %in% c("60-64","60-150")) 
+#combine rates
+g <- f %>% group_by(year, gender) %>% summarise(rate_per_100K = sum(rate_per_100K))
+h <- g %>% mutate(Age = "60-150")
+col_order <- c("Age", "gender", "year", "rate_per_100K")
+h <- h[, col_order]
+h
+#remove "h values" from tidy_prisoner_rate
+tidy_prisoner_rate <- tidy_prisoner_rate %>% filter(!Age %in% c("60-64","60-150")) %>%
+#join the consolidated data
+bind_rows(h) 
+tidy_prisoner_rate
+``
+ 
+
 
 
 
