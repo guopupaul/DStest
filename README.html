@@ -377,21 +377,23 @@ $(document).ready(function () {
 </div>
 
 
-<div id="exploring-the-dojcs-prisoner-statistics-2007-2018" class="section level1">
-<h1>Exploring the DOJCS prisoner statistics 2007-2018</h1>
+<div id="exploring-the-dojcs-prisoner-statistics-2007-2018---prisoner-age-and-imprisonment-rate" class="section level1">
+<h1>Exploring the DOJCS prisoner statistics 2007-2018 - Prisoner Age and Imprisonment rate</h1>
 <div id="introduction" class="section level2">
 <h2>Introduction</h2>
-<p>Corrections Victoria has published its Annual Prisoner Statistical Profile 2007-2018 on the DOJCS website <a href="https://www.corrections.vic.gov.au/publications-manuals-and-statistics/annual-prisoner-statistical-profile-2006-07-to-2017-18" class="uri">https://www.corrections.vic.gov.au/publications-manuals-and-statistics/annual-prisoner-statistical-profile-2006-07-to-2017-18</a>. This consists of tables spread across 36 sheets of an Excel workbook. The profile is not in a tidy data format. The profile aggregates and summarises data in many dimensions but it does not provide any visualisation or analysis.</p>
+<p>Corrections Victoria has published its Annual Prisoner Statistical Profile 2007-2018 on the DOJCS website <a href="https://www.corrections.vic.gov.au/publications-manuals-and-statistics/annual-prisoner-statistical-profile-2006-07-to-2017-18" class="uri">https://www.corrections.vic.gov.au/publications-manuals-and-statistics/annual-prisoner-statistical-profile-2006-07-to-2017-18</a>. This consists of tables spread across 36 sheets of an Excel workbook. The profile is not in a tidy data format. The profile aggregates and displays data in many dimensions but it does not provide any visualisation or analysis.</p>
 </div>
-<div id="prisoner-age" class="section level2">
-<h2>Prisoner Age</h2>
+<div id="cleaning-the-data---prisoner-age" class="section level2">
+<h2>Cleaning the data - prisoner age</h2>
 <p>Data regarding prisoner age is in Table 1.5. The code blocks below tidy up the male and female data separately and then join them into one tidy data tibble showing prisoner age across the time period.</p>
-<p>Here is the male data read in:</p>
+<p>Load the following packages:</p>
 <pre class="{r}"><code>library(stringr)
 library(dplyr)
 library(readxl)
 library(tidyr)
-male_prisoner_age &lt;- read_excel(&quot;annual_prisonerstats_2017-18v2.xls&quot;, sheet = 8, range = &quot;B6:AA15&quot;,col_names = FALSE)</code></pre>
+library(ggplot2)</code></pre>
+<p>Here is the male data read in:</p>
+<pre class="{r}"><code>male_prisoner_age &lt;- read_excel(&quot;annual_prisonerstats_2017-18v2.xls&quot;, sheet = 8, range = &quot;B6:AA15&quot;,col_names = FALSE)</code></pre>
 <p>Here is the female data read in:</p>
 <pre class="{r}"><code>female_prisoner_age &lt;- read_excel(&quot;annual_prisonerstats_2017-18v2.xls&quot;, sheet = 8, range = &quot;B21:AA30&quot;,col_names = FALSE)</code></pre>
 <p>The code below is a function that tidies the extracted data:</p>
@@ -412,10 +414,58 @@ tidy_female_prisoner_age</code></pre>
 <p>The code below joins male and female tibbles together:</p>
 <pre class="{r}"><code>tidy_male_prisoner_age &lt;- tidy_male_prisoner_age %&gt;% mutate(gender = &quot;Male&quot;)
 tidy_female_prisoner_age &lt;- tidy_female_prisoner_age %&gt;% mutate(gender = &quot;Female&quot;)
+#join the two tibbles
 tidy_prisoner_age &lt;- tidy_male_prisoner_age %&gt;%
 bind_rows(tidy_female_prisoner_age) %&gt;%
 arrange(year)
+#consistent variable names, classes, and column order for presentation
+tidy_prisoner_age &lt;- tidy_prisoner_age %&gt;% 
+mutate_all(list(~str_replace(.,&quot;Under 20&quot;, &quot;0-20&quot; ))) %&gt;% 
+mutate_all(list(~str_replace(.,&quot;60 and over&quot;, &quot;60-150&quot; ))) 
+col_order &lt;- c(&quot;Age&quot;, &quot;gender&quot;, &quot;year&quot;, &quot;number_of_prisoners&quot;)
+tidy_prisoner_age &lt;- tidy_prisoner_age[, col_order]
+tidy_prisoner_age$number_of_prisoners &lt;- as.numeric(tidy_prisoner_age$number_of_prisoners)
+tidy_prisoner_age$Age &lt;- as.factor(tidy_prisoner_age$Age)
+tidy_prisoner_age$gender &lt;- as.factor(tidy_prisoner_age$gender)
 tidy_prisoner_age</code></pre>
+<p>##Cleaning the data - Imprisonment rate Data regarding Imprisonment Rate is in Table 1.6. The code blocks below tidy up the male and female data separately and then join them into one tidy data tibble showing Imprisonment Rate across the time period.</p>
+<p>Here is the male data read in:</p>
+<pre class="{r}"><code>male_prisoner_rate &lt;- read_excel(&quot;annual_prisonerstats_2017-18v2.xls&quot;, sheet = 9, range = &quot;B6:O16&quot;,col_names = FALSE)</code></pre>
+<p>Here is the female data read in:</p>
+<pre class="{r}"><code>female_prisoner_rate &lt;- read_excel(&quot;annual_prisonerstats_2017-18v2.xls&quot;, sheet = 9, range = &quot;B21:O31&quot;,col_names = FALSE)</code></pre>
+<p>The code below is a function that tidies the extracted data:</p>
+<pre class="{r}"><code>tidy_rate &lt;- function(x) {
+#remove column 2 (blank)
+x &lt;- x %&gt;% select(1,3:14)
+# label Rate and dates
+colnames(x) &lt;- c(&quot;Age&quot;, &quot;30/06/07&quot;, &quot;30/06/08&quot;, &quot;30/06/09&quot;, &quot;30/06/10&quot;, &quot;30/06/11&quot;, &quot;30/06/12&quot;, &quot;30/06/13&quot;, &quot;30/06/14&quot;, &quot;30/06/15&quot;, &quot;30/06/16&quot;, &quot;30/06/17&quot;, &quot;30/06/18&quot;)
+#transpose rows and columns
+x &lt;- x %&gt;% gather(&quot;year&quot;, &quot;rate_per_100K&quot;, 2:13)
+}</code></pre>
+<p>A tidy data tibble showing male prisoner Rate across 2007-2018:</p>
+<pre class="{r}"><code>tidy_male_prisoner_rate &lt;- tidy_rate(male_prisoner_rate)
+tidy_male_prisoner_rate</code></pre>
+<p>A tidy data tibble showing female prisoner Rate across 2007-2018:</p>
+<pre class="{r}"><code>tidy_female_prisoner_rate &lt;- tidy_rate(female_prisoner_rate)
+tidy_female_prisoner_rate</code></pre>
+<p>The code below joins male and female tibbles together:</p>
+<pre class="{r}"><code>tidy_male_prisoner_rate &lt;- tidy_male_prisoner_rate %&gt;% mutate(gender = &quot;Male&quot;)
+tidy_female_prisoner_rate &lt;- tidy_female_prisoner_rate %&gt;% mutate(gender = &quot;Female&quot;)
+#join the two tibbles
+tidy_prisoner_rate &lt;- tidy_male_prisoner_rate %&gt;%
+bind_rows(tidy_female_prisoner_rate) %&gt;%
+arrange(year)
+#consistent variable names, classes, and column order for presentation
+tidy_prisoner_rate &lt;- tidy_prisoner_rate %&gt;% 
+mutate_all(list(~str_replace(.,&quot;Under 20&quot;, &quot;0-20&quot; ))) %&gt;% 
+mutate_all(list(~str_replace(.,&quot;65 and over&quot;, &quot;65-150&quot; ))) 
+col_order &lt;- c(&quot;Age&quot;, &quot;gender&quot;, &quot;year&quot;, &quot;rate_per_100,000&quot;)
+tidy_prisoner_rate &lt;- tidy_prisoner_rate[, col_order]
+tidy_prisoner_rate$rate_per_100K &lt;- as.numeric(tidy_prisoner_rate$rate_per_100K)
+tidy_prisoner_rate$Age &lt;- as.factor(tidy_prisoner_rate$Age)
+tidy_prisoner_rate$gender &lt;- as.factor(tidy_prisoner_rate$gender)
+tidy_prisoner_rate</code></pre>
+<p>##Consolidating Age and Imprisonment rate data For reasons unknown, the age bin values in “Prisoner Age”&quot; stop at 60 and stop at 65 in “Imprisonment Rate”.</p>
 </div>
 </div>
 
