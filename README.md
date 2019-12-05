@@ -116,16 +116,17 @@ For reasons unknown, the age bin values in "Prisoner Age"" stop at 60 and stop a
 f <- tidy_prisoner_rate %>% filter(Age %in% c("60-64","60-150")) 
 #combine rates
 g <- f %>% group_by(year, gender) %>% summarise(rate_per_100K = sum(rate_per_100K))
+#create a "matching tibble"
 h <- g %>% mutate(Age = "60-150")
 col_order <- c("Age", "gender", "year", "rate_per_100K")
 h <- h[, col_order]
 h
-#remove "h values" from tidy_prisoner_rate
+#remove "unwanted values" from tidy_prisoner_rate
 tidy_prisoner_rate <- tidy_prisoner_rate %>% filter(!Age %in% c("60-64","60-150")) %>%
 #join the consolidated data
 bind_rows(h) 
 tidy_prisoner_rate
-``
+```
  
 
 

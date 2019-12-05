@@ -425,8 +425,6 @@ mutate_all(list(~str_replace(.,&quot;60 and over&quot;, &quot;60-150&quot; )))
 col_order &lt;- c(&quot;Age&quot;, &quot;gender&quot;, &quot;year&quot;, &quot;number_of_prisoners&quot;)
 tidy_prisoner_age &lt;- tidy_prisoner_age[, col_order]
 tidy_prisoner_age$number_of_prisoners &lt;- as.numeric(tidy_prisoner_age$number_of_prisoners)
-tidy_prisoner_age$Age &lt;- as.factor(tidy_prisoner_age$Age)
-tidy_prisoner_age$gender &lt;- as.factor(tidy_prisoner_age$gender)
 tidy_prisoner_age</code></pre>
 </div>
 <div id="cleaning-the-data---imprisonment-rate" class="section level2">
@@ -469,7 +467,20 @@ tidy_prisoner_rate</code></pre>
 </div>
 <div id="consolidating-age-and-imprisonment-rate-data" class="section level2">
 <h2>Consolidating Age and Imprisonment rate data</h2>
-<p>For reasons unknown, the age bin values in “Prisoner Age”&quot; stop at 60 and stop at 65 in “Imprisonment Rate”.To consolidate this data alongside the age data, we need to combine the “60-64”&quot; and “65 and Over” rates into a comparable “60-150” bin. `<code>{r} #select values to be combined f &lt;- tidy_prisoner_rate %&gt;% filter(Age %in% c(&quot;60-64&quot;,&quot;60-150&quot;))  #combine rates g &lt;- f %&gt;% group_by(year, gender) %&gt;% summarise(rate_per_100K = sum(rate_per_100K)) h &lt;- g %&gt;% mutate(Age = &quot;60-150&quot;) col_order &lt;- c(&quot;Age&quot;, &quot;gender&quot;, &quot;year&quot;, &quot;rate_per_100K&quot;) h &lt;- h[, col_order] h #remove &quot;h values&quot; from tidy_prisoner_rate tidy_prisoner_rate &lt;- tidy_prisoner_rate %&gt;% filter(!Age %in% c(&quot;60-64&quot;,&quot;60-150&quot;)) %&gt;% #join the consolidated data bind_rows(h)  tidy_prisoner_rate</code></p>
+<p>For reasons unknown, the age bin values in “Prisoner Age”&quot; stop at 60 and stop at 65 in “Imprisonment Rate”.To consolidate this data alongside the age data, we need to combine the “60-64”&quot; and “65 and Over” rates into a comparable “60-150” bin.</p>
+<pre class="{r}"><code>#select values to be combined
+f &lt;- tidy_prisoner_rate %&gt;% filter(Age %in% c(&quot;60-64&quot;,&quot;60-150&quot;)) 
+#combine rates
+g &lt;- f %&gt;% group_by(year, gender) %&gt;% summarise(rate_per_100K = sum(rate_per_100K))
+h &lt;- g %&gt;% mutate(Age = &quot;60-150&quot;)
+col_order &lt;- c(&quot;Age&quot;, &quot;gender&quot;, &quot;year&quot;, &quot;rate_per_100K&quot;)
+h &lt;- h[, col_order]
+h
+#remove &quot;h values&quot; from tidy_prisoner_rate
+tidy_prisoner_rate &lt;- tidy_prisoner_rate %&gt;% filter(!Age %in% c(&quot;60-64&quot;,&quot;60-150&quot;)) %&gt;%
+#join the consolidated data
+bind_rows(h) 
+tidy_prisoner_rate</code></pre>
 </div>
 </div>
 
