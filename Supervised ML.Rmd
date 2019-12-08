@@ -6,4 +6,3 @@ output: html_notebook
 This is an [R Markdown](http://rarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
 Predicting if basketball game team performance targets are high enough to win
-m
