@@ -3,6 +3,137 @@ title: "Supervised ML"
 output: html_notebook
 ---
 
-This is an [R Markdown](http://rarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+Load the following packages:
+```{r}
+library(stringr)
+library(dplyr)
+library(readxl)
+library(tidyr)
+library(ggplot2)
+library("FactoMineR")
+library("factoextra")
+library("corrplot")
+library(pROC)
+library(caret)
+library(e1071)
+library(class)
+```
 
-Predicting if basketball game team performance targets are high enough to win
+###Predicting if basketball game team performance targets are high enough to win
+##Introduction
+
+
+##Generalised linear modelling
+Here is the data read in:
+```{r}
+boxscores <- read_excel("YL1 2019.xlsx", sheet = 2, range = "A1:Y271",col_names = TRUE)
+glimpse(boxscores)
+```
+To prepare a data frame with required numeric variables for predictive analysis:
+```{r}
+boxscores.active <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", MIN, TP)) %>%
+mutate(RESULT = ifelse(RESULT == "WIN", 1, 0))
+boxscores.active <- sapply(boxscores.active, as.numeric) %>%
+as.data.frame(boxscores.active)
+#define % of training and test set
+bound <- floor((nrow(boxscores.active)/4)*3) 
+#sample rows
+boxscores.active <- boxscores.active[sample(nrow(boxscores.active)), ] 
+#get training set
+boxscores.active.train <- boxscores.active[1:bound, ]              
+boxscores.active.test <- boxscores.active[(bound+1):nrow(boxscores.active), ]
+
+#build the model
+boxscores_model <- glm(RESULT ~., data = boxscores.active.train,
+                    family = binomial())
+summary(boxscores_model)
+
+
+#check accuracy of model
+boxscores.active.train$win_prob <- predict(boxscores_model, type = "response")
+ROC <- roc(boxscores.active.train$RESULT, boxscores.active.train$win_prob)
+plot(ROC, col = "red")
+auc(ROC)
+```
+# test model
+```{r}
+boxscores.active.test$win_prob <- predict(boxscores_model, newdata = boxscores.active.test, type = "response")
+boxscores.active.test$win_pred <- ifelse(boxscores.active.test$win_prob > 0.5, 1, 0)
+mean(boxscores.active.test$win_pred == boxscores.active.test$RESULT)
+```
+###Principal Component Analysis
+
+```{r}
+# remove response variable
+boxscores.pca <- boxscores.active %>% select(-RESULT)
+res.pca <- PCA(boxscores.pca, graph = FALSE)
+eig.val <- get_eigenvalue(res.pca)
+eig.val
+```
+An eigenvalue > 1 indicates that PCs account for more variance than accounted by one of the original variables in standardized data. This is commonly used as a cutoff point for which PCs are retained. This holds true only when the data are standardized.
+
+You can also limit the number of component to that number that accounts for a certain fraction of the total variance. For example, if you are satisfied with 70% of the total variance explained then use the number of components to achieve that.
+
+In this case, 7 dimensions > 1 and cover and cover 82% of the variance.
+An alternative method to determine the number of principal components is to look at a Scree Plot, which is the plot of eigenvalues ordered from largest to the smallest. The number of component is determined at the point, beyond which the remaining eigenvalues are all relatively small and of comparable size
+```{r}
+fviz_screeplot(res.pca, addlabels = TRUE, ylim = c(0, 25))
+```
+5 dimensions still looks right.
+The quality of representation of the variables on factor map is called cos2 (square cosine, squared coordinates). You can visualize the cos2 of variables on all the dimensions using the corrplot package:
+```{r}
+var <- get_pca_var(res.pca)
+var
+corrplot(var$cos2, is.corr=FALSE)
+```
+It’s possible to use the function corrplot() [corrplot package] to highlight the most contributing variables for each dimension:
+```{r}
+corrplot(var$contrib, is.corr=FALSE) 
+#a visualisation
+fviz_contrib(res.pca, choice = "var", axes = 1:5, top = 17)
+```
+The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/18. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
+
+
+
+
+##Using the knn algorithm
+```{r}
+boxscores <- read_excel("YL1 2019.xlsx", sheet = 2, range = "A1:Y271",col_names = TRUE)
+glimpse(boxscores)
+```
+To prepare a tibble with required variables for predictive analysis:
+```{r}
+boxscores.active <- boxscores %>% select(c("3P%", "2P%", TO, OR, FTA, RESULT))
+boxscores.active <- boxscores.active %>% rename(Three_Percent = "3P%", Two_Percent = "2P%")
+#calculate a k value
+indxTrain <- createDataPartition(y = boxscores.active$RESULT, p = 0.75, list = FALSE)
+training <- boxscores.active[indxTrain,]
+testing <- boxscores.active[-indxTrain,]
+set.seed(400)
+ctrl <- trainControl(method = "repeatedcv", repeats = 3)
+knnfit<- train(RESULT ~., data = training, method = "knn", trControl = ctrl, preProcess = c("center", "scale"), tuneLength =20)
+#build model using k = 23
+knn(train = boxscores.active[1:5], test = test, cl = boxscores.active$RESULT, K = 23)
+#model accuracy
+fit <- knn(train = boxscores.active[1:5], test = boxscores.active[1:5], cl = boxscores.active$RESULT, k = 23)
+actual <- boxscores.active$RESULT
+as.matrix(table(actual, fit))
+      fit
+actual LOSS WIN
+  LOSS  102  33
+  WIN    34 101
+cm <- as.matrix(table(actual, fit))
+sum(diag(cm))/length(actual)
+```
+
+```{r}
+#define % of training and test set
+bound <- floor((nrow(boxscores.active)/4)*3) 
+#sample rows
+boxscores.active <- boxscores.active[sample(nrow(boxscores.active)), ] 
+#get training set
+boxscores.active.train <- boxscores.active[1:bound, ]              
+boxscores.active.test <- boxscores.active[(bound+1):nrow(boxscores.active), ]
+```
