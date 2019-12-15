@@ -95,7 +95,7 @@ fviz_contrib(res.pca, choice = "var", axes = 1:5, top = 17)
 ```
 The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/18. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
 
-
+##Feature selection
 
 
 ##Using the knn algorithm
