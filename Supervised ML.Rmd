@@ -2,8 +2,27 @@
 title: "Supervised ML"
 output: html_notebook
 ---
+###Using Basketball boxscore elements and machine learning to identify winning team performance targets
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+##Introduction
+The fundamental question facing basketball teams in competition is "what do we have to do to win?". Traditionally, the coach's philosophy and gameplan, team member skills and abilities, overall team offensive performance and overall team defensive performance combine in varying ways to determine who wins. Data Analytics in professional levels of basketball has rapidly grown to quantify these factors in very sophisticated ways. The insights derived are actively used to modify style of play and performance targets to enable more likely wins.
+
+I'm an assitant coach one level below professional basketball. Applying current cutting edge techniques in basketball analytics is problematic for two reasons:
+1. the resourcing to collect and analyse the required detailed data in our league is not readily available, and
+2. the direct applicability of insights from professional basketball to our league is uncertain.
+
+What is readily available in our league is a detailed boxscore for each game. This will be the data source.
+
+##Aim
+To add some rigor to choosing an optimal style of play and setting effective performance targets, this paper will use a set of game boxscores and machine learning techniques to investigate and model key performance targets for a winning game. 
+
+##Method
+1. Conduct a logistic regression for a response variable of "WIN/LOSS" as a function of all dependent variables
+2. Reduce the number of dependent variables to avoid overfitting and validate a final model which would be easier to use
+3. Identify 5-6 key perfomance targets
+4. Calculate threshold values for the key performance targets that the model says will lead to a "WIN" 
+
+##The data
 Load the following packages:
 ```{r}
 library(stringr)
@@ -19,31 +38,34 @@ library(caret)
 library(e1071)
 library(class)
 ```
-
-###Predicting if basketball game team performance targets are high enough to win
-##Introduction
-
-
-##Generalised linear modelling
 Here is the data read in:
 ```{r}
 boxscores <- read_excel("YL1 2019.xlsx", sheet = 2, range = "A1:Y271",col_names = TRUE)
 glimpse(boxscores)
 ```
-To prepare a data frame with required numeric variables for predictive analysis:
+
+##Data pre-processing
+To prepare a data frame with required numeric variables for analysis:
 ```{r}
+#remove unneeded categorical variables and aggregate variables
 boxscores.active <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", MIN, TP)) %>%
+#convert RESULT to a binomial variable
 mutate(RESULT = ifelse(RESULT == "WIN", 1, 0))
+#coerce to  a numeric data frame
 boxscores.active <- sapply(boxscores.active, as.numeric) %>%
 as.data.frame(boxscores.active)
-#define % of training and test set
+#define training(75%) and test(25%) sets
 bound <- floor((nrow(boxscores.active)/4)*3) 
 #sample rows
 boxscores.active <- boxscores.active[sample(nrow(boxscores.active)), ] 
 #get training set
 boxscores.active.train <- boxscores.active[1:bound, ]              
 boxscores.active.test <- boxscores.active[(bound+1):nrow(boxscores.active), ]
+```
 
+##logistic regression model
+
+```{r}
 #build the model
 boxscores_model <- glm(RESULT ~., data = boxscores.active.train,
                     family = binomial())
@@ -56,13 +78,30 @@ ROC <- roc(boxscores.active.train$RESULT, boxscores.active.train$win_prob)
 plot(ROC, col = "red")
 auc(ROC)
 ```
-# test model
+The high AUC score for the logistic regression model (0.9825) suggests the model performs well i.e. it ranks a random positive example more highly than a random negative example.
+
 ```{r}
+#test model
 boxscores.active.test$win_prob <- predict(boxscores_model, newdata = boxscores.active.test, type = "response")
 boxscores.active.test$win_pred <- ifelse(boxscores.active.test$win_prob > 0.5, 1, 0)
+fit<- boxscores.active.test$win_pred
+actual <- boxscores.active.test$RESULT
+as.matrix(table(actual, fit))
 mean(boxscores.active.test$win_pred == boxscores.active.test$RESULT)
 ```
-###Principal Component Analysis
+ The mean equivalence between predicted wins and actual wins in the test data (0.8676471) suggests the model's accuracy will make 87 correct predictions out of 100 total examples.
+
+ The confusion matrix also provides information about the precision (false positive rate) and recall(proportion of actual wins identified correctly) of the model.
+ A model that produces no false positives has a precision of 1.0. Here (29/29+4) = 0.8787879. When the model predicts a win, it is correct 88% of the time. 
+ A model that always identifies actual wins has a recall of 1.0. Here (29/29+5) = 0.8529412. The model correctly identifies wins 85% of the time.
+ 
+Because we know that the total number of wins and losses are equal in the dataset, we can determine if there is prediction bias in the model:
+```{r}
+mean(boxscores.active.test$win_pred) - mean(boxscores.active.test$RESULT)
+```
+By subtracting the average predicted wins from the average of actual wins, the result is -0.01470588, which is effectively zero. This confirms no prediction bias in the model.
+
+##Principal Component Analysis
 
 ```{r}
 # remove response variable
