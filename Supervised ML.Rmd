@@ -5,9 +5,9 @@ output: html_notebook
 ###Using Basketball boxscore elements and machine learning to identify winning team performance targets
 
 ##Introduction
-The fundamental question facing basketball teams in competition is "what do we have to do to win?". Traditionally, the coach's philosophy and gameplan, team member skills and abilities, overall team offensive performance and overall team defensive performance combine in varying ways to determine who wins. Data Analytics in professional levels of basketball has rapidly grown to quantify these factors in very sophisticated ways. The insights derived are actively used to modify style of play and performance targets to enable more likely wins.
+The fundamental question facing basketball teams in competition is "what do we have to do to win?". Typically, the coach's philosophy and gameplan, team member skills and abilities, overall team offensive performance and overall team defensive performance combine in varying ways to determine who wins. Data Analytics in professional levels of basketball has rapidly grown to quantify these factors in very sophisticated ways. The insights derived are actively used to modify style of play and performance targets to enable more likely wins.
 
-I'm an assitant coach one level below professional basketball. Applying current cutting edge techniques in basketball analytics is problematic for two reasons:
+I'm an assitant coach one level below professional basketball. Applying current cutting edge techniques in basketball analytics at my level is problematic for two reasons:
 1. the resourcing to collect and analyse the required detailed data in our league is not readily available, and
 2. the direct applicability of insights from professional basketball to our league is uncertain.
 
@@ -17,9 +17,9 @@ What is readily available in our league is a detailed boxscore for each game. Th
 To add some rigor to choosing an optimal style of play and setting effective performance targets, this paper will use a set of game boxscores and machine learning techniques to investigate and model key performance targets for a winning game. 
 
 ##Method
-1. Conduct a logistic regression for a response variable of "WIN/LOSS" as a function of all dependent variables
-2. Reduce the number of dependent variables to avoid overfitting and validate a final model which would be easier to use
-3. Identify 5-6 key perfomance targets
+1. Conduct EDA to identify any high level insights from the boxscores
+2. Conduct a logistic regression for a response variable of "WIN/LOSS" as a function of all dependent variables
+2. Using PCA, hierarchical clustering, and random forest to reduce the number of dependent variables to avoid overfitting and validate a final model which would be easier to use
 4. Calculate threshold values for the key performance targets that the model says will lead to a "WIN" 
 
 ##The data
@@ -43,64 +43,98 @@ Here is the data read in:
 boxscores <- read_excel("YL1 2019.xlsx", sheet = 2, range = "A1:Y271",col_names = TRUE)
 glimpse(boxscores)
 ```
-
+##Remove outliers
+```{r}
+a <- boxscores.active %>% select( c("TP", "RESULT"))
+w <- a %>% filter(RESULT == 1)
+l <- a %>% filter(RESULT == 0)
+summary(w)
+ggplot(w, aes(x = TP)) + geom_histogram(binwidth = 1)
+table(w$TP)
+#Win outliers are below 70 and above 117
+summary(l)
+ggplot(l, aes(x = TP)) + geom_histogram(binwidth = 1)
+table(l$TP)
+#LOss outliers are below 56 and above 98
+wtrim <- w %>% filter(TP >=70) %>% filter(TP < 118)
+ltrim <- l %>% filter(TP >=56) %>% filter(TP < 99)
+boxscores.trim <- rbind
+```
 ##Data pre-processing
 To prepare a data frame with required numeric variables for analysis:
 ```{r}
 #remove unneeded categorical variables and aggregate variables
-boxscores.active <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", MIN, TP)) %>%
+boxscores.active <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", MIN)) %>%
 #convert RESULT to a binomial variable
 mutate(RESULT = ifelse(RESULT == "WIN", 1, 0))
 #coerce to  a numeric data frame
 boxscores.active <- sapply(boxscores.active, as.numeric) %>%
 as.data.frame(boxscores.active)
+##Remove outliers
+w <- boxscores.active %>% filter(RESULT == 1)
+l <- boxscores.active %>% filter(RESULT == 0)
+summary(w$TP)
+ggplot(w, aes(x = TP)) + geom_histogram(binwidth = 1)
+table(w$TP)
+#Win outliers are below 70 and above 117
+summary(l$TP)
+ggplot(l, aes(x = TP)) + geom_histogram(binwidth = 1)
+table(l$TP)
+#LOss outliers are below 56 and above 98
+wtrim <- w %>% filter(TP >=70) %>% filter(TP < 118)
+ltrim <- l %>% filter(TP >=56) %>% filter(TP < 99)
+boxscores.trim <- rbind(w,l)
+glimpse(boxscores.trim)
+```
+
 #define training(75%) and test(25%) sets
-bound <- floor((nrow(boxscores.active)/4)*3) 
+```{r}
+bound <- floor((nrow(boxscores.trim)/4)*3) 
 #sample rows
-boxscores.active <- boxscores.active[sample(nrow(boxscores.active)), ] 
+boxscores.trim <- boxscores.trim[sample(nrow(boxscores.trim)), ] 
 #get training set
-boxscores.active.train <- boxscores.active[1:bound, ]              
-boxscores.active.test <- boxscores.active[(bound+1):nrow(boxscores.active), ]
+boxscores.trim.train <- boxscores.trim[1:bound, ]              
+boxscores.trim.test <- boxscores.trim[(bound+1):nrow(boxscores.trim), ]
 ```
 
 ##logistic regression model
 
 ```{r}
 #build the model
-boxscores_model <- glm(RESULT ~., data = boxscores.active.train,
+boxscores_model <- glm(RESULT ~., data = boxscores.trim.train,
                     family = binomial())
 summary(boxscores_model)
 
 
 #check accuracy of model
-boxscores.active.train$win_prob <- predict(boxscores_model, type = "response")
-ROC <- roc(boxscores.active.train$RESULT, boxscores.active.train$win_prob)
+boxscores.trim.train$win_prob <- predict(boxscores_model, type = "response")
+ROC <- roc(boxscores.trim.train$RESULT, boxscores.trim.train$win_prob)
 plot(ROC, col = "red")
 auc(ROC)
 ```
-The high AUC score for the logistic regression model (0.9825) suggests the model performs well i.e. it ranks a random positive example more highly than a random negative example.
+The high AUC score for the logistic regression model (0.9855) suggests the model performs well i.e. it ranks a random positive example more highly than a random negative example.
 
 ```{r}
 #test model
-boxscores.active.test$win_prob <- predict(boxscores_model, newdata = boxscores.active.test, type = "response")
-boxscores.active.test$win_pred <- ifelse(boxscores.active.test$win_prob > 0.5, 1, 0)
-fit<- boxscores.active.test$win_pred
-actual <- boxscores.active.test$RESULT
+boxscores.trim.test$win_prob <- predict(boxscores_model, newdata = boxscores.trim.test, type = "response")
+boxscores.trim.test$win_pred <- ifelse(boxscores.trim.test$win_prob > 0.5, 1, 0)
+fit<- boxscores.trim.test$win_pred
+actual <- boxscores.trim.test$RESULT
 as.matrix(table(actual, fit))
-mean(boxscores.active.test$win_pred == boxscores.active.test$RESULT)
+mean(boxscores.trim.test$win_pred == boxscores.trim.test$RESULT)
 ```
  The mean equivalence between predicted wins and actual wins in the test data (0.8676471) suggests the model's accuracy will make 87 correct predictions out of 100 total examples.
 
- The confusion matrix also provides information about the precision (false positive rate) and recall(proportion of actual wins identified correctly) of the model.
- A model that produces no false positives has a precision of 1.0. Here (29/29+4) = 0.8787879. When the model predicts a win, it is correct 88% of the time. 
- A model that always identifies actual wins has a recall of 1.0. Here (29/29+5) = 0.8529412. The model correctly identifies wins 85% of the time.
+ The confusion matrix also provides information about the precision and recall(proportion of actual wins identified correctly) of the model.
+  The accuracy rate is (24/28) = 0.85714. When the model predicts a win, it is correct 86% of the time. 
+ A model that always identifies actual wins has a recall of 1.0. Here (60/68) = 0.88235. The model correctly identifies wins 88% of the time.
  
 Because we know that the total number of wins and losses are equal in the dataset, we can determine if there is prediction bias in the model:
 ```{r}
-mean(boxscores.active.test$win_pred) - mean(boxscores.active.test$RESULT)
+mean(fit - actual)
 ```
-By subtracting the average predicted wins from the average of actual wins, the result is -0.01470588, which is effectively zero. This confirms no prediction bias in the model.
-
+By subtracting the average of actual wins from the average of predicted wins, the result is -0.02941176, which  confirms no material prediction bias in the model.
+##Feature selection
 ##Principal Component Analysis
 
 ```{r}
@@ -114,7 +148,7 @@ An eigenvalue > 1 indicates that PCs account for more variance than accounted by
 
 You can also limit the number of component to that number that accounts for a certain fraction of the total variance. For example, if you are satisfied with 70% of the total variance explained then use the number of components to achieve that.
 
-In this case, 7 dimensions > 1 and cover and cover 82% of the variance.
+In this case, 5 dimensions > 1 and cover and cover 70% of the variance.
 An alternative method to determine the number of principal components is to look at a Scree Plot, which is the plot of eigenvalues ordered from largest to the smallest. The number of component is determined at the point, beyond which the remaining eigenvalues are all relatively small and of comparable size
 ```{r}
 fviz_screeplot(res.pca, addlabels = TRUE, ylim = c(0, 25))
@@ -134,7 +168,19 @@ fviz_contrib(res.pca, choice = "var", axes = 1:5, top = 17)
 ```
 The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/18. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
 
-##Feature selection
+
+##Using hierarchical clustering
+```{r}
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+library(factoextra) # clustering visualization
+library(dendextend) # for comparing two dendrograms
+#fetch data
+boxscores.hc <- boxscores.active %>% select(-RESULT)
+boxscores.hc <- scale(boxscores.hc)
+
+
+```
 
 
 ##Using the knn algorithm
@@ -153,16 +199,13 @@ testing <- boxscores.active[-indxTrain,]
 set.seed(400)
 ctrl <- trainControl(method = "repeatedcv", repeats = 3)
 knnfit<- train(RESULT ~., data = training, method = "knn", trControl = ctrl, preProcess = c("center", "scale"), tuneLength =20)
+knnfit
 #build model using k = 23
-knn(train = boxscores.active[1:5], test = test, cl = boxscores.active$RESULT, K = 23)
+knn(train = boxscores.active[1:5], test = test, cl = boxscores.active$RESULT, k = 23)
 #model accuracy
 fit <- knn(train = boxscores.active[1:5], test = boxscores.active[1:5], cl = boxscores.active$RESULT, k = 23)
 actual <- boxscores.active$RESULT
-as.matrix(table(actual, fit))
-      fit
-actual LOSS WIN
-  LOSS  102  33
-  WIN    34 101
+table(actual, fit)
 cm <- as.matrix(table(actual, fit))
 sum(diag(cm))/length(actual)
 ```

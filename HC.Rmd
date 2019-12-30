@@ -1,0 +1,82 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(stringr)
+library(dplyr)
+library(readxl)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library("FactoMineR")
+library("factoextra")
+library("corrplot")
+library(pROC)
+library(caret)
+library(e1071)
+library(class)
+library(cluster)    # clustering algorithms
+library(dendextend) # for comparing two dendrograms
+#fetch data
+boxscores <- read_excel("YL1 2019.xlsx", sheet = 2, range = "A1:Y271",col_names = TRUE)
+glimpse(boxscores)
+#neaten up
+boxscores.active <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", MIN, TP)) %>%
+#convert RESULT to a binomial variable
+mutate(RESULT = ifelse(RESULT == "WIN", 1, 0))
+#coerce to  a numeric data frame
+boxscores.active <- sapply(boxscores.active, as.numeric) %>%
+as.data.frame(boxscores.active)
+#prep for hc
+boxscores.hc <- boxscores.active %>% select(-RESULT)
+boxscores.hc <- scale(boxscores.hc)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+```{r}
+# Dissimilarity matrix
+d <- dist(boxscores.hc, method = "euclidean")
+# Hierarchical clustering using Complete Linkage
+hc1 <- hclust(d, method = "complete" )
+# Plot the obtained dendrogram
+plot(hc1, cex = 0.6, hang = -1)
+
+```
+But what if "complete" is not the optimal method. Let's compate methods with the score closest to 1 suggesting strong clustering structure
+```{r}
+# Agglomerative coefficient
+# function to compute coefficient
+ac <- function(x) {
+  agnes(boxscores.hc, method = x)$ac
+
+# Compute with agnes
+hc2$ac
+# methods to assess
+m <- c( "average", "single", "complete", "ward")
+names(m) <- c( "average", "single", "complete", "ward")
+hc2 <- agnes(boxscores.hc, method = "complete")
+}
+map_dbl(m, ac)
+```
+Ward's method while the best result "In Ward, the tree shows the growth of the summative, not the averaged, coefficient of colligation; and the consequence is that since later clusters are bigger by the number of points, the later clusters look misleadingly "better" on the tree. To standardize Ward's dendrogramm appropriately, divide the coefficient growth at each step by the overall number of points in the two clusters being combined (such standardized Ward dendrogram, though, may be hard to implement graphically)"
+So we'll use complete method
+```{r}
+hc3 <- agnes(boxscores.hc, method = "ward")
+pltree(hc3, cex = 0.6, hang = -1, main = "Dendrogram of agnes") 
+```
+```{r}
+# complete method
+hc5 <- hclust(d, method = "complete" )
+# Cut tree into 4 groups
+sub_grp <- cutree(hc5, k = 4)
+# Number of members in each cluster
+table(sub_grp)
+
+```
