@@ -43,34 +43,18 @@ Here is the data read in:
 boxscores <- read_excel("YL1 2019.xlsx", sheet = 2, range = "A1:Y271",col_names = TRUE)
 glimpse(boxscores)
 ```
-##Remove outliers
-```{r}
-a <- boxscores.active %>% select( c("TP", "RESULT"))
-w <- a %>% filter(RESULT == 1)
-l <- a %>% filter(RESULT == 0)
-summary(w)
-ggplot(w, aes(x = TP)) + geom_histogram(binwidth = 1)
-table(w$TP)
-#Win outliers are below 70 and above 117
-summary(l)
-ggplot(l, aes(x = TP)) + geom_histogram(binwidth = 1)
-table(l$TP)
-#LOss outliers are below 56 and above 98
-wtrim <- w %>% filter(TP >=70) %>% filter(TP < 118)
-ltrim <- l %>% filter(TP >=56) %>% filter(TP < 99)
-boxscores.trim <- rbind
-```
+
 ##Data pre-processing
 To prepare a data frame with required numeric variables for analysis:
 ```{r}
 #remove unneeded categorical variables and aggregate variables
-boxscores.active <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", MIN)) %>%
+boxscores.active <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", TR, MIN)) %>%
 #convert RESULT to a binomial variable
 mutate(RESULT = ifelse(RESULT == "WIN", 1, 0))
 #coerce to  a numeric data frame
 boxscores.active <- sapply(boxscores.active, as.numeric) %>%
 as.data.frame(boxscores.active)
-##Remove outliers
+##Remove outlier games
 w <- boxscores.active %>% filter(RESULT == 1)
 l <- boxscores.active %>% filter(RESULT == 0)
 summary(w$TP)
@@ -84,6 +68,8 @@ table(l$TP)
 wtrim <- w %>% filter(TP >=70) %>% filter(TP < 118)
 ltrim <- l %>% filter(TP >=56) %>% filter(TP < 99)
 boxscores.trim <- rbind(w,l)
+#while TP helped us identify outlier games, it can be viewed as an aggregate variable, so we'll remove it
+boxscores.trim <- boxscores.trim %>% select(- TP)
 glimpse(boxscores.trim)
 ```
 
@@ -112,7 +98,7 @@ ROC <- roc(boxscores.trim.train$RESULT, boxscores.trim.train$win_prob)
 plot(ROC, col = "red")
 auc(ROC)
 ```
-The high AUC score for the logistic regression model (0.9855) suggests the model performs well i.e. it ranks a random positive example more highly than a random negative example.
+The high AUC score for the logistic regression model (0.9844) suggests the model performs well i.e. it ranks a random positive example more highly than a random negative example.
 
 ```{r}
 #test model
@@ -123,23 +109,23 @@ actual <- boxscores.trim.test$RESULT
 as.matrix(table(actual, fit))
 mean(boxscores.trim.test$win_pred == boxscores.trim.test$RESULT)
 ```
- The mean equivalence between predicted wins and actual wins in the test data (0.8676471) suggests the model's accuracy will make 87 correct predictions out of 100 total examples.
+ The mean equivalence between predicted wins and actual wins in the test data (0.85294) suggests the model's accuracy will make 85 correct predictions out of 100 total examples.
 
  The confusion matrix also provides information about the precision and recall(proportion of actual wins identified correctly) of the model.
-  The accuracy rate is (24/28) = 0.85714. When the model predicts a win, it is correct 86% of the time. 
- A model that always identifies actual wins has a recall of 1.0. Here (60/68) = 0.88235. The model correctly identifies wins 88% of the time.
+  The accuracy rate is (25/30) = 0.83333. When the model predicts a win, it is correct 83% of the time. 
+
  
 Because we know that the total number of wins and losses are equal in the dataset, we can determine if there is prediction bias in the model:
 ```{r}
 mean(fit - actual)
 ```
-By subtracting the average of actual wins from the average of predicted wins, the result is -0.02941176, which  confirms no material prediction bias in the model.
+By subtracting the average of actual wins from the average of predicted wins, the result is 0, which  confirms no material prediction bias in the model.
 ##Feature selection
 ##Principal Component Analysis
 
 ```{r}
 # remove response variable
-boxscores.pca <- boxscores.active %>% select(-RESULT)
+boxscores.pca <- boxscores.trim %>% select(-RESULT)
 res.pca <- PCA(boxscores.pca, graph = FALSE)
 eig.val <- get_eigenvalue(res.pca)
 eig.val
