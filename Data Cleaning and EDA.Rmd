@@ -7,7 +7,7 @@ output:
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
-# Exploring the DOJCS prisoner statistics 2007-2018 - Prisoner Age and Imprisonment rate
+# Exploring the DOJCS prisoner statistics 2007-2018
 ## Introduction
 Corrections Victoria has published its Annual Prisoner Statistical Profile 2007-2018 on the DOJCS website <https://www.corrections.vic.gov.au/publications-manuals-and-statistics/annual-prisoner-statistical-profile-2006-07-to-2017-18>. This consists of tables spread across 36 sheets of an Excel workbook. The profile is not in a tidy data format. The profile aggregates and displays data in many dimensions but it does not provide any visualisation or analysis.
 
@@ -32,43 +32,51 @@ Here is the female data read in:
 ```{r}
 female_prisoner_age <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 8, range = "B21:AA30",col_names = FALSE)
 ```
-The code below is a function that tidies the extracted data:
+The code below is a function that tidies extracted data:
 ```{r}
-tidy_age <- function(x) {
+tidy_up <- function(x) {
 #remove column 2 (blank) and percentage columns
 x <- x %>% select(1,3:26) %>% select(c(-3, -5, -7, -9, -11, -13, -15, -17, -19, -21, -23, -25 ))
 # label age and dates
 colnames(x) <- c("Age", "30/06/07", "30/06/08", "30/06/09", "30/06/10", "30/06/11", "30/06/12", "30/06/13", "30/06/14", "30/06/15", "30/06/16", "30/06/17", "30/06/18")
 #transpose rows and columns
 x <- x %>% gather("year", "number_of_prisoners", 2:13)
+return(x)
+}
+```
+The code below joins male and female data
+```{r}
+# x is male data, y is female data
+tidyjoin <- function(x,y)  {
+x <- x %>% mutate(gender = "Male")
+y <- y %>% mutate(gender = "Female")
+#join the two tibbles
+bothsex <-bind_rows(x,y)
+return(bothsex)
 }
 ```
 A tidy data tibble showing male prisoner age across 2007-2018:
 ```{r}
-tidy_male_prisoner_age <- tidy_age(male_prisoner_age)
+tidy_male_prisoner_age <- tidy_up(male_prisoner_age)
 tidy_male_prisoner_age
 ```
 A tidy data tibble showing female prisoner age across 2007-2018:
 ```{r}
-tidy_female_prisoner_age <- tidy_age(female_prisoner_age)
+tidy_female_prisoner_age <- tidy_up(female_prisoner_age)
 tidy_female_prisoner_age
 ```
 The code below joins male and female tibbles together:
 ```{r}
-tidy_male_prisoner_age <- tidy_male_prisoner_age %>% mutate(gender = "Male")
-tidy_female_prisoner_age <- tidy_female_prisoner_age %>% mutate(gender = "Female")
-#join the two tibbles
-tidy_prisoner_age <- tidy_male_prisoner_age %>%
-bind_rows(tidy_female_prisoner_age) 
+tidy_prisoner_age <- tidyjoin(tidy_male_prisoner_age, tidy_female_prisoner_age)
 #consistent variable names and column order for presentation
 tidy_prisoner_age <- tidy_prisoner_age %>% 
 mutate_all(list(~str_replace(.,"Under 20", "0-20" ))) %>% 
 mutate_all(list(~str_replace(.,"60 and over", "60-150" ))) 
-tidy_prisoner_age$year <- dmy(tidy_prisoner_age$year)
-tidy_prisoner_age$number_of_prisoners <- as.numeric(tidy_prisoner_age$number_of_prisoners)
 tidy_prisoner_age <- tidy_prisoner_age %>% arrange(year)
 col_order <- c("Age", "gender", "year", "number_of_prisoners")
 tidy_prisoner_age <- tidy_prisoner_age[, col_order]
+tidy_prisoner_age$year <- dmy(tidy_prisoner_age$year)
+tidy_prisoner_age$number_of_prisoners <- as.numeric(tidy_prisoner_age$number_of_prisoners)
 #define the set for EDA
 prisoner.age <- tidy_prisoner_age
 ```
@@ -106,21 +114,16 @@ tidy_female_prisoner_rate
 ```
 The code below joins male and female tibbles together:
 ```{r}
-tidy_male_prisoner_rate <- tidy_male_prisoner_rate %>% mutate(gender = "Male")
-tidy_female_prisoner_rate <- tidy_female_prisoner_rate %>% mutate(gender = "Female")
-#join the two tibbles
-tidy_prisoner_rate <- tidy_male_prisoner_rate %>%
-bind_rows(tidy_female_prisoner_rate) %>%
-arrange(year)
+tidy_prisoner_rate <- tidyjoin(tidy_male_prisoner_rate, tidy_female_prisoner_rate)
 #consistent variable names, classes and column order for presentation
 tidy_prisoner_rate <- tidy_prisoner_rate %>% 
 mutate_all(list(~str_replace(.,"Under 20", "0-20" ))) %>% 
 mutate_all(list(~str_replace(.,"65 and over", "60-150" )))
-tidy_prisoner_rate$year <- dmy(tidy_prisoner_rate$year)
-tidy_prisoner_rate$rate_per_100K <- as.numeric(tidy_prisoner_rate$rate_per_100K)
 tidy_prisoner_rate <- tidy_prisoner_rate %>% arrange(year)
 col_order <- c("Age", "gender", "year", "rate_per_100K")
 tidy_prisoner_rate <- tidy_prisoner_rate[, col_order]
+tidy_prisoner_rate$year <- dmy(tidy_prisoner_rate$year)
+tidy_prisoner_rate$rate_per_100K <- as.numeric(tidy_prisoner_rate$rate_per_100K)
 ```
 ## Consolidating Age and Imprisonment rate data
 For reasons unknown, the age bin values in "Prisoner Age"" stop at 60, but they stop at 65 in "Imprisonment Rate".To consolidate this data alongside the age data, we need to combine the "60-64"" and "65 and Over" rates into a comparable "60-150" bin.
@@ -170,13 +173,13 @@ female_prisoner_prior <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet 
 ```
 A tidy data tibble for male priors
 ```{r}
-tidy_male_prisoner_prior <- tidy_age(male_prisoner_prior) %>%
+tidy_male_prisoner_prior <- tidy_up(male_prisoner_prior) %>%
 rename( "Priors" = "Age")
 tidy_male_prisoner_prior
 ```
 A tidy data tibble for female priors
 ```{r}
-tidy_female_prisoner_prior <- tidy_age(female_prisoner_prior) %>%
+tidy_female_prisoner_prior <- tidy_up(female_prisoner_prior) %>%
 rename( "Priors" = "Age")
 tidy_female_prisoner_prior
 ```
@@ -208,13 +211,13 @@ female_prisoner_offence <- read_excel("annual_prisonerstats_2017-18v2.xls", shee
 ```
 A tidy data tibble for male offences
 ```{r}
-tidy_male_prisoner_offence <- tidy_age(male_prisoner_offence) %>%
+tidy_male_prisoner_offence <- tidy_up(male_prisoner_offence) %>%
 rename( "Offence" = "Age")
 tidy_male_prisoner_offence
 ```
 A tidy data tibble for female offences
 ```{r}
-tidy_female_prisoner_offence <- tidy_age(female_prisoner_offence) %>%
+tidy_female_prisoner_offence <- tidy_up(female_prisoner_offence) %>%
 rename( "Offence" = "Age")
 tidy_female_prisoner_offence
 ```
@@ -235,9 +238,16 @@ tidy_prisoner_offence <- tidy_prisoner_offence[, col_order]
 prisoner.offences <- tidy_prisoner_offence
 prisoner.offences
 ```
-
-
-
+# Prisoner country of birth
+this data is not gender based. Here is the data read in:
+```{r}
+prisoner_birth <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 15, range = "B6:AA44",col_names = FALSE)
+```
+a tidy data tibble
+```{r}
+tidy_prisoner_birth <- tidy_up(prisoner_birth)
+tidy_prisoner_birth
+```
 
  # Aboriginal and Torres Strait Islander prisoners
 Here is the male data read in:
@@ -248,3 +258,4 @@ Here is the female data read in:
 ```{r}
 female_prisoner_ATSI <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 7, range = "B11:O11",col_names = FALSE)
 ```
+
