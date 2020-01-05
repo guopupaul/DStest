@@ -34,11 +34,11 @@ female_prisoner_age <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 
 ```
 The code below is a function that tidies extracted data:
 ```{r}
-tidy_up <- function(x) {
+tidy_up <- function(x,y) {
 #remove column 2 (blank) and percentage columns
 x <- x %>% select(1,3:26) %>% select(c(-3, -5, -7, -9, -11, -13, -15, -17, -19, -21, -23, -25 ))
 # label age and dates
-colnames(x) <- c("Age", "30/06/07", "30/06/08", "30/06/09", "30/06/10", "30/06/11", "30/06/12", "30/06/13", "30/06/14", "30/06/15", "30/06/16", "30/06/17", "30/06/18")
+colnames(x) <- c(y, "30/06/07", "30/06/08", "30/06/09", "30/06/10", "30/06/11", "30/06/12", "30/06/13", "30/06/14", "30/06/15", "30/06/16", "30/06/17", "30/06/18")
 #transpose rows and columns
 x <- x %>% gather("year", "number_of_prisoners", 2:13)
 return(x)
@@ -46,40 +46,38 @@ return(x)
 ```
 The code below joins male and female data
 ```{r}
-# x is male data, y is female data
-tidyjoin <- function(x,y)  {
-x <- x %>% mutate(gender = "Male")
-y <- y %>% mutate(gender = "Female")
-#join the two tibbles
-bothsex <-bind_rows(x,y)
-return(bothsex)
+# x is male data, z is female data
+tidyjoin <- function(x,z)  {
+  x <- x %>% mutate(gender = "Male")
+  z <- z %>% mutate(gender = "Female")
+  #join the two tibbles
+  bothsex <-bind_rows(x,z)
+  bothsex <- bothsex %>% 
+    mutate_all(list(~str_replace(.,"Under 20", "0-20" ))) %>% 
+    mutate_all(list(~str_replace(.,"60 and over", "60-150" ))) 
+  bothsex <- bothsex %>% arrange(year)
+  bothsex <- bothsex[, c(2,1,4,3)]
+  bothsex$year <- dmy(bothsex$year)
+  bothsex$number_of_prisoners <- as.numeric(bothsex$number_of_prisoners)
+  return(bothsex)
 }
 ```
 A tidy data tibble showing male prisoner age across 2007-2018:
 ```{r}
-tidy_male_prisoner_age <- tidy_up(male_prisoner_age)
+tidy_male_prisoner_age <- tidy_up(male_prisoner_age, y = "Age")
 tidy_male_prisoner_age
 ```
 A tidy data tibble showing female prisoner age across 2007-2018:
 ```{r}
-tidy_female_prisoner_age <- tidy_up(female_prisoner_age)
+tidy_female_prisoner_age <- tidy_up(female_prisoner_age, y = "Age")
 tidy_female_prisoner_age
 ```
 The code below joins male and female tibbles together:
 ```{r}
 tidy_prisoner_age <- tidyjoin(tidy_male_prisoner_age, tidy_female_prisoner_age)
-#consistent variable names and column order for presentation
-tidy_prisoner_age <- tidy_prisoner_age %>% 
-mutate_all(list(~str_replace(.,"Under 20", "0-20" ))) %>% 
-mutate_all(list(~str_replace(.,"60 and over", "60-150" ))) 
-tidy_prisoner_age <- tidy_prisoner_age %>% arrange(year)
-col_order <- c("Age", "gender", "year", "number_of_prisoners")
-tidy_prisoner_age <- tidy_prisoner_age[, col_order]
-tidy_prisoner_age$year <- dmy(tidy_prisoner_age$year)
-tidy_prisoner_age$number_of_prisoners <- as.numeric(tidy_prisoner_age$number_of_prisoners)
-#define the set for EDA
-prisoner.age <- tidy_prisoner_age
+tidy_prisoner_age
 ```
+
 ## Cleaning the data - Imprisonment rate
 Data regarding Imprisonment Rate is in Table 1.6. The code blocks below tidy up the male and female data separately and then join them into one tidy data tibble showing Imprisonment Rate across the time period.
 
