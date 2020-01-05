@@ -10,74 +10,164 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 # Exploring the DOJCS prisoner statistics 2007-2018
 ## Introduction
 Corrections Victoria has published its Annual Prisoner Statistical Profile 2007-2018 on the DOJCS website <https://www.corrections.vic.gov.au/publications-manuals-and-statistics/annual-prisoner-statistical-profile-2006-07-to-2017-18>. This consists of tables spread across 36 sheets of an Excel workbook. The profile is not in a tidy data format. The profile aggregates and displays data in many dimensions but it does not provide any visualisation or analysis.
-
-## Cleaning the data - prisoner age
-Data regarding prisoner age is in Table 1.5. The code blocks below tidy up the male and female data separately and then join them into one tidy data tibble showing prisoner age across the time period.
+##Cleaning the data - prisoner profile
+The DOJCS workbook has several sheets that profile prisoners during the time period. These are:
+Table 1.7 Known prior adult imprisonment
+Table 1.8 Sentenced/Unsentenced
+Table 1.11 Most serious charge/offence
+Table 1.12 Country of birth
+Table 1.13 Highest level of education
+Table 1.14 Employment status
+Table 1.15 Marital Status
+ The code blocks below tidy up the data separately and then join them into one tidy data tibble showing prisoner profile across the time period.
+The range layout for profile factors varies across the workbook. Known priors, charge/offence, education, employment and marital status all work off the function designed for prisoner age. Sentenced and unsentenced require altered functions.
 
 Load the following packages:
 ```{r}
-library(stringr)
-library(dplyr)
+library(tidyverse)
 library(readxl)
-library(tidyr)
 library(lubridate)
-library(ggplot2)
 ```
 
-Here is the male data read in:
+## Cleaning steps
+1. Import data sets into R
+2. use a function to put data into a tidy format
+3. Use a function to join separate gender-based tibbles into one tibble (with a gender variable).
+the data is then ready for EDA
+
+### A function to import the data
 ```{r}
-male_prisoner_age <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 8, range = "B6:AA15",col_names = FALSE)
+readitin <- function(s,r)  {
+# s = sheet number, r= cell range in form "A1:B2"
+  read_excel("annual_prisonerstats_2017-18v2.xls", sheet = s, range = r ,col_names = FALSE)
+  }
 ```
-Here is the female data read in:
-```{r}
-female_prisoner_age <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 8, range = "B21:AA30",col_names = FALSE)
-```
-The code below is a function that tidies extracted data:
+
+### A function to tidy extracted data
 ```{r}
 tidy_up <- function(x,y) {
+#x = the extracted data frame, y = descriptive variable
 #remove column 2 (blank) and percentage columns
 x <- x %>% select(1,3:26) %>% select(c(-3, -5, -7, -9, -11, -13, -15, -17, -19, -21, -23, -25 ))
-# label age and dates
+# label descriptive variable and dates
 colnames(x) <- c(y, "30/06/07", "30/06/08", "30/06/09", "30/06/10", "30/06/11", "30/06/12", "30/06/13", "30/06/14", "30/06/15", "30/06/16", "30/06/17", "30/06/18")
 #transpose rows and columns
 x <- x %>% gather("year", "number_of_prisoners", 2:13)
 return(x)
 }
 ```
-The code below joins male and female data
+
+### A function to join separate gender-based tibbles into one tibble (with a gender variable)
 ```{r}
-# x is male data, z is female data
-tidyjoin <- function(x,z)  {
-  x <- x %>% mutate(gender = "Male")
-  z <- z %>% mutate(gender = "Female")
+tidyjoin <- function(m,f)  {
+  m <- m %>% mutate(gender = "Male")
+  f <- f %>% mutate(gender = "Female")
   #join the two tibbles
-  bothsex <-bind_rows(x,z)
-  bothsex <- bothsex %>% 
+  mf <-bind_rows(m,f)
+  mf <- mf %>% 
     mutate_all(list(~str_replace(.,"Under 20", "0-20" ))) %>% 
     mutate_all(list(~str_replace(.,"60 and over", "60-150" ))) 
-  bothsex <- bothsex %>% arrange(year)
-  bothsex <- bothsex[, c(2,1,4,3)]
-  bothsex$year <- dmy(bothsex$year)
-  bothsex$number_of_prisoners <- as.numeric(bothsex$number_of_prisoners)
-  return(bothsex)
+  mf <- mf %>% arrange(year)
+  mf <- mf[, c(2,1,4,3)]
+  mf$year <- dmy(mf$year)
+  mf$number_of_prisoners <- as.numeric(mf$number_of_prisoners)
+  return(mf)
 }
 ```
-A tidy data tibble showing male prisoner age across 2007-2018:
+## Prisoner age
+Data regarding prisoner age is in Table 1.5
+
+Here is the data read in:
+```{r}
+male_prisoner_age <- readitin(s = 8, r = "B6:AA15")
+female_prisoner_age <- readitin(s = 8, r = "B21:AA30")
+```
+
+A tidy data tibble showing prisoner age across 2007-2018:
 ```{r}
 tidy_male_prisoner_age <- tidy_up(male_prisoner_age, y = "Age")
-tidy_male_prisoner_age
-```
-A tidy data tibble showing female prisoner age across 2007-2018:
-```{r}
 tidy_female_prisoner_age <- tidy_up(female_prisoner_age, y = "Age")
-tidy_female_prisoner_age
-```
-The code below joins male and female tibbles together:
-```{r}
 tidy_prisoner_age <- tidyjoin(tidy_male_prisoner_age, tidy_female_prisoner_age)
 tidy_prisoner_age
 ```
-
+## Known prior adult imprisonment
+Here is the data read in:
+```{r}
+male_prisoner_prior <- readitin(s = 10, r = "B7:AA12")
+female_prisoner_prior <- readitin(s = 10, r = "B17:AA22")
+```
+A tidy data tibble for priors
+```{r}
+tidy_male_prisoner_prior <- tidy_up(male_prisoner_prior, y = "Priors")
+tidy_female_prisoner_prior <- tidy_up(female_prisoner_prior, y = "Priors")
+tidy_prisoner_prior <- tidyjoin(tidy_male_prisoner_prior, tidy_female_prisoner_prior)
+tidy_prisoner_prior
+```
+##Most serious offence
+Here is the data read in:
+```{r}
+male_prisoner_offence <- readitin(s = 14, r = "B6:AA17")
+female_prisoner_offence <- readitin(s = 14, r = "B22:AA33")
+```
+A tidy data tibble for offences
+```{r}
+tidy_male_prisoner_offence <- tidy_up(male_prisoner_offence, y = "Offence")
+tidy_female_prisoner_offence <- tidy_up(female_prisoner_offence, y = "Offence")
+tidy_prisoner_offence <- tidyjoin(tidy_male_prisoner_offence, tidy_female_prisoner_offence)
+tidy_prisoner_offence
+```
+#Prisoner Level of Education
+Here is the data read in:
+```{r}
+male_prisoner_edu <- readitin(s = 16, r = "B6:AA13")
+female_prisoner_edu <- readitin(s = 16, r = "B18:AA25")
+```
+A tidy data tibble for education level
+```{r}
+tidy_male_prisoner_edu <- tidy_up(male_prisoner_edu, y = "Education")
+tidy_female_prisoner_edu <- tidy_up(female_prisoner_edu, y = "Education")
+tidy_prisoner_edu <- tidyjoin(tidy_male_prisoner_edu, tidy_female_prisoner_edu)
+tidy_prisoner_edu
+```
+#Prisoner Employment Status
+Here is the data read in:
+```{r}
+male_prisoner_emp <- readitin(s = 17, r = "B6:AA12")
+female_prisoner_emp <- readitin(s = 17, r = "B17:AA23")
+```
+A tidy data tibble for employment status
+```{r}
+tidy_male_prisoner_emp <- tidy_up(male_prisoner_emp, y = "Employment")
+tidy_female_prisoner_emp <- tidy_up(female_prisoner_emp, y = "Employment")
+tidy_prisoner_emp <- tidyjoin(tidy_male_prisoner_emp, tidy_female_prisoner_emp)
+tidy_prisoner_emp
+```
+#Prisoner Marital status
+Here is the data read in:
+```{r}
+male_prisoner_mar <- readitin(s = 18, r = "B6:AA12")
+female_prisoner_mar <- readitin(s = 18, r = "B17:AA23")
+```
+A tidy data tibble for marital status
+```{r}
+tidy_male_prisoner_mar <- tidy_up(male_prisoner_mar, y = "Marital Status")
+tidy_female_prisoner_mar <- tidy_up(female_prisoner_mar, y = "Marital Status")
+tidy_prisoner_mar <- tidyjoin(tidy_male_prisoner_mar, tidy_female_prisoner_mar)
+tidy_prisoner_mar
+```
+# Prisoner country of birth
+this data is not gender based. Here is the data read in:
+```{r}
+prisoner_birth <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 15, range = "B6:AA44",col_names = FALSE) %>%
+#remove blank rows and continent names
+filter(!is.na(...1)) %>% filter(!is.na(...3))
+prisoner_birth
+```
+a tidy data tibble
+```{r}
+tidy_prisoner_birth <- tidy_up(prisoner_birth, y = "Birthplace")
+tidy_prisoner_birth
+```
 ## Cleaning the data - Imprisonment rate
 Data regarding Imprisonment Rate is in Table 1.6. The code blocks below tidy up the male and female data separately and then join them into one tidy data tibble showing Imprisonment Rate across the time period.
 
@@ -147,105 +237,7 @@ HERE IS A TIDY DATA TIBBLE FOR AGE AND IMPRISONMENT RATES
 prisoners <- prisoner.age %>% left_join(imprisonment.rate, by = c("Age", "gender", "year"))
 prisoners
 ```
-##Cleaning the data - prisoner profile
-The DOJCS workbook has several sheets that profile prisoners during the time period. These are:
-Table 1.7 Known prior adult imprisonment
-Table 1.8 Sentenced/Unsentenced
-Table 1.11 Most serious charge/offence
-Table 1.12 Country of birth
-Table 1.13 Highest level of education
-Table 1.14 Employment status
-Table 1.15 Marital Status
- The code blocks below tidy up the data separately and then join them into one tidy data tibble showing prisoner profile across the time period.
-The range layout for profile factors varies across the workbook. Known priors, charge/offence, education, employment and marital status all work off the function designed for prisoner age. Sentenced and unsentenced require altered functions.
- 
 
- # Known prior adult imprisonment
-Here is the male data read in:
-```{r}
-male_prisoner_prior <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 10, range = "B7:AA12",col_names = FALSE)
-```
-Here is the female data read in:
-```{r}
-female_prisoner_prior <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 10, range = "B17:AA22",col_names = FALSE)
-```
-A tidy data tibble for male priors
-```{r}
-tidy_male_prisoner_prior <- tidy_up(male_prisoner_prior) %>%
-rename( "Priors" = "Age")
-tidy_male_prisoner_prior
-```
-A tidy data tibble for female priors
-```{r}
-tidy_female_prisoner_prior <- tidy_up(female_prisoner_prior) %>%
-rename( "Priors" = "Age")
-tidy_female_prisoner_prior
-```
-The code below joins male and female tibbles together:
-```{r}
-tidy_male_prisoner_prior <- tidy_male_prisoner_prior %>% mutate(gender = "Male")
-tidy_female_prisoner_prior <- tidy_female_prisoner_prior %>% mutate(gender = "Female")
-#join the two tibbles
-tidy_prisoner_prior <- tidy_male_prisoner_prior %>%
-bind_rows(tidy_female_prisoner_prior) 
-#consistent classes and column order for presentation
-tidy_prisoner_prior$year <- dmy(tidy_prisoner_prior$year)
-tidy_prisoner_prior$number_of_prisoners <- as.numeric(tidy_prisoner_prior$number_of_prisoners)
-tidy_prisoner_prior <- tidy_prisoner_prior %>% arrange(year)
-col_order <- c("Priors", "gender", "year", "number_of_prisoners")
-tidy_prisoner_prior <- tidy_prisoner_prior[, col_order]
-#define the set for EDA
-prisoner.priors <- tidy_prisoner_prior
-prisoner.priors
-```
-#Most serious offence
-Here is the male data read in:
-```{r}
-male_prisoner_offence <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 14, range = "B6:AA17",col_names = FALSE)
-```
-Here is the female data read in:
-```{r}
-female_prisoner_offence <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 14, range = "B22:AA33",col_names = FALSE)
-```
-A tidy data tibble for male offences
-```{r}
-tidy_male_prisoner_offence <- tidy_up(male_prisoner_offence) %>%
-rename( "Offence" = "Age")
-tidy_male_prisoner_offence
-```
-A tidy data tibble for female offences
-```{r}
-tidy_female_prisoner_offence <- tidy_up(female_prisoner_offence) %>%
-rename( "Offence" = "Age")
-tidy_female_prisoner_offence
-```
-The code below joins male and female tibbles together:
-```{r}
-tidy_male_prisoner_offence <- tidy_male_prisoner_offence %>% mutate(gender = "Male")
-tidy_female_prisoner_offence <- tidy_female_prisoner_offence %>% mutate(gender = "Female")
-#join the two tibbles
-tidy_prisoner_offence <- tidy_male_prisoner_offence %>%
-bind_rows(tidy_female_prisoner_offence) 
-#consistent classes and column order for presentation
-tidy_prisoner_offence$year <- dmy(tidy_prisoner_offence$year)
-tidy_prisoner_offence$number_of_prisoners <- as.numeric(tidy_prisoner_offence$number_of_prisoners)
-tidy_prisoner_offence <- tidy_prisoner_offence %>% arrange(year)
-col_order <- c("Offence", "gender", "year", "number_of_prisoners")
-tidy_prisoner_offence <- tidy_prisoner_offence[, col_order]
-#define the set for EDA
-prisoner.offences <- tidy_prisoner_offence
-prisoner.offences
-```
-# Prisoner country of birth
-this data is not gender based. Here is the data read in:
-```{r}
-prisoner_birth <- read_excel("annual_prisonerstats_2017-18v2.xls", sheet = 15, range = "B6:AA44",col_names = FALSE)
-```
-a tidy data tibble
-```{r}
-tidy_prisoner_birth <- tidy_up(prisoner_birth)
-tidy_prisoner_birth
-```
 
  # Aboriginal and Torres Strait Islander prisoners
 Here is the male data read in:
