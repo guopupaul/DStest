@@ -23,7 +23,7 @@ Table 1.15 Marital Status
 The range layout for profile factors varies across the workbook. Known priors, charge/offence, education, employment and marital status all work off the function designed for prisoner age. Sentenced and unsentenced require altered functions.
 
 Load the following packages:
-```{r message FALSE}
+```{r message = FALSE}
 library(tidyverse)
 library(readxl)
 library(lubridate)
