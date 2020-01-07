@@ -56,7 +56,7 @@ x <- x %>% select(1,3:26) %>% select(c(-3, -5, -7, -9, -11, -13, -15, -17, -19, 
 # label descriptive variable and dates
 colnames(x) <- c(y, "30/06/07", "30/06/08", "30/06/09", "30/06/10", "30/06/11", "30/06/12", "30/06/13", "30/06/14", "30/06/15", "30/06/16", "30/06/17", "30/06/18")
 #transpose rows and columns
-x <- x %>% gather("year", "number_of_prisoners", 2:13)
+x <- x %>% pivot_longer(-y, names_to = "year", values_to = "number_of_prisoners")
 return(x)
 }
 ```
@@ -192,7 +192,7 @@ select(c(-3, -5, -7, -9, -11, -13, -15, -17, -19, -21, -23, -25 )) %>%
 # label descriptive variable and dates
 colnames(x) <- c(y, "30/06/07", "30/06/08", "30/06/09", "30/06/10", "30/06/11", "30/06/12", "30/06/13", "30/06/14", "30/06/15", "30/06/16", "30/06/17", "30/06/18")
 #transpose rows and columns
-x <- x %>% gather(year, "number_of_prisoners", 2:13)
+x <- x %>% pivot_longer(-y, names_to = "year", values_to = "number_of_prisoners")
 return(x)
 }
 ```
@@ -227,7 +227,7 @@ x <- x %>% select(1,3:14)
 # label Rate and dates
 colnames(x) <- c("Age", "30/06/07", "30/06/08", "30/06/09", "30/06/10", "30/06/11", "30/06/12", "30/06/13", "30/06/14", "30/06/15", "30/06/16", "30/06/17", "30/06/18")
 #transpose rows and columns
-x <- x %>% gather("year", "rate_per_100K" , 2:13)
+x <- x %>% pivot_longer(-y, names_to = "year", values_to = "number_of_prisoners")
 }
 ```
 A tidy data tibble showing male prisoner Rate across 2007-2018:
