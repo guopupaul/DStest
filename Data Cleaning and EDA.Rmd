@@ -7,20 +7,75 @@ output:
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
-# Exploring the DOJCS prisoner statistics 2007-2018
-## Introduction
-Corrections Victoria has published its Annual Prisoner Statistical Profile 2007-2018 on the DOJCS website <https://www.corrections.vic.gov.au/publications-manuals-and-statistics/annual-prisoner-statistical-profile-2006-07-to-2017-18>. This consists of tables spread across 36 sheets of an Excel workbook. The profile is not in a tidy data format. The profile aggregates and displays data in many dimensions but it does not provide any visualisation or analysis.
+# # Exploring the DOJCS prisoner statistics 2007-2018
 
-The DOJCS workbook has several sheets that profile prisoners during the time period. These are:
-Table 1.7 Known prior adult imprisonment
-Table 1.8 Sentenced/Unsentenced
-Table 1.11 Most serious charge/offence
-Table 1.12 Country of birth
-Table 1.13 Highest level of education
-Table 1.14 Employment status
-Table 1.15 Marital Status
-Age
-Imprisonment Rate
+##Introduction: 
+Corrections Victoria has published its Annual Prisoner Statistical Profile 2007-2018 on the DOJCS website .
+The aim of this paper is to perform exploratory data analysis to gain insight on a number of questions related to the recidivism , personal characteristics, demographics and crime type over the period. The approach is to tidy the data up so that visualisations and aggregations can then be used to gain insights.
+
+##Research Questions: 
+R1: Can we identify a recidivism rate? is it trending upwards or downwards?
+R2: Is there any relationship between the education attained, marital status, employment status or country of birth and the imprisonment of Victorians? 
+
+##Data Source:  
+<https://www.corrections.vic.gov.au/publications-manuals-and-statistics/annual-prisoner-statistical-profile-2006-07-to-2017-18>
+
+##Data Description: 
+This consists of tables spread across 36 sheets of an Excel workbook. The profile is not in a tidy data format, and the non-tidy format changes from sheet to sheet The profile aggregates and displays data in many dimensions but it does not provide any visualisation or analysis.
+
+The DOJCS workbook has several sheets that are relevant to our analysis. These are:
+Table 1.5 All prisoners by sex, Age
+Table 1.6 All prisoners by sex, Imprisonment Rate per 100,000 population
+Table 1.7 All prisoners by sex, Known prior adult imprisonment
+Table 1.8 All prisoners by sex, Sentenced/Unsentenced
+Table 1.11 All prisoners by sex, Most serious charge/offence
+Table 1.12 All prisoners by sex, Country of birth
+Table 1.13 All prisoners by sex, Highest level of education
+Table 1.14 All prisoners by sex, Employment status
+Table 1.15 All prisoners by sex, Marital Status
+
+ 
+
+ 
+Number of NaN values in monthly_rent_payment column:  
+
+ 
+
+##Data cleaning: 
+Data types of variables: There are four data types associated with the variables in the data set: 
+
+Boolean: Integer Boolean (0 or 1), Character Boolean (yes or no). Columns such as paredblolad, noelec, etc. 
+
+Float data type. For example, meaneduc, overcrowding, etc. 
+
+Integer data type. For example, age, rent, rooms, tamviv, etc. 
+
+Alpha-numeric. For example, Id, idhogar.
+The original column names have been renamed to their shortened English equivalent descriptions for easy reference, understanding, and communication. They can be found in the ‘changed_column_names.csv’. Henceforth, data will be referenced through the renamed columns. 
+
+Missing value treatment and Feature Engineering: From the research questions, R1, R2, and R3, it can be interpreted that the unit of analysis is a household. However, each record in the data set describes the attributes of a single person in the household. People belonging to a single household can be grouped together by the ‘household_identifier’ column as they have the same identifier value assigned to each of them. ‘Household_identifer’ values are unique to every household. Additionally, the same value of the ‘target’ class (poverty level) is assigned to all the people in a single household. 
+
+ 
+
+##Answers to Research Questions: 
+Answer for R1: Yes. The Random Forest classifier has been constructed to successfully identify the level of poverty for Costa Rican households with good performance metrics. With the availability of more data, the performance of the model can be improved. 
+Answer for R2: Yes. The fifteen most important columns that determine the level of poverty for a household, in the decreasing order of their importance are, ‘years_of_schooling’, ‘meaneduc’, ‘age_in_years’, ‘dependency’, ‘overcrowding’, ‘number_of_all_rooms_in_the_house’, ‘no_of_mobile_phones’, ‘edjefe’, ‘years_of_education_of_male_head_of_household_squared’, ‘number_of_children_0_to_19_in_household’, ‘monthly_rent_payment’, ‘edjefa’, ‘total_females_in_the_household’, ‘bedrooms’, ‘number_of_persons_living_in_the_household’. 
+Answer for R3: Yes. There is a strong relationship between the features related to the entities mentioned in the question R3 to the level of poverty for a household. 
+Answer for R4: K-Means clustering technique does not perform well in clustering the records with the same poverty level together. Hence, in the absence of the ‘target’ column, and with the given features in R3, K-Means clustering algorithm cannot help in assigning the class label for a person/individual. 
+
+##References: 
+Hadley Wickham, Romain François, Lionel Henry and Kirill Müller (2019). dplyr: A Grammar of Data Manipulation. R package version 0.8.3. https://CRAN.R-project.org/package=dplyr 
+
+Hadley Wickham (2019). stringr: Simple, Consistent Wrappers for Common String Operations. R package version 1.4.0. https://CRAN.R-project.org/package=stringr 
+
+H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016. Tableau Software (2019). Retrieved from https://www.tableau.com/ 
+
+
+
+ 
+
+
+
  
 The data layout varies across the workbook.
 Known priors, charge/offence, education, employment, age and marital status have a uniform layout and can be cleaned with the same functions.
@@ -38,19 +93,19 @@ library(lubridate)
 2. use a function to put data into a tidy format
 3. Use a function to join separate gender-based tibbles into one tibble (with a gender variable).
 the data is then ready for EDA
-
 ### A function to import the data
 ```{r}
 readitin <- function(s,r)  {
-# s = sheet number, r= cell range in form "A1:B2"
+# s = workbook sheet number, r= cell range in the form "A1:B2"
   read_excel("annual_prisonerstats_2017-18v2.xls", sheet = s, range = r ,col_names = FALSE)
   }
 ```
 
+
 ### A function to tidy extracted data
 ```{r}
 tidy_up <- function(x,y) {
-#x = the extracted data frame, y = descriptive variable
+#x = the extracted tibble, y = a descriptive variable
 #remove column 2 (blank) and percentage columns
 x <- x %>% select(1,3:26) %>% select(c(-3, -5, -7, -9, -11, -13, -15, -17, -19, -21, -23, -25 ))
 # label descriptive variable and dates
@@ -67,11 +122,10 @@ tidyjoin <- function(m,f)  {
   m <- m %>% mutate(gender = "Male")
   f <- f %>% mutate(gender = "Female")
   #join the two tibbles
-  mf <-bind_rows(m,f)
-  mf <- mf %>% 
+  mf <-bind_rows(m,f) %>% 
     mutate_all(list(~str_replace(.,"Under 20", "0-20" ))) %>% 
-    mutate_all(list(~str_replace(.,"60 and over", "60-150" ))) 
-  mf <- mf %>% arrange(year)
+    mutate_all(list(~str_replace(.,"60 and over", "60-150" ))) %>%
+    arrange(year)
   mf <- mf[, c(2,1,4,3)]
   mf$year <- dmy(mf$year)
   mf$number_of_prisoners <- as.numeric(mf$number_of_prisoners)
@@ -91,7 +145,6 @@ A tidy data tibble showing prisoner age across 2007-2018:
 tidy_male_prisoner_age <- tidy_up(male_prisoner_age, y = "Age")
 tidy_female_prisoner_age <- tidy_up(female_prisoner_age, y = "Age")
 tidy_prisoner_age <- tidyjoin(tidy_male_prisoner_age, tidy_female_prisoner_age)
-tidy_prisoner_age
 ```
 ## Known prior adult imprisonment
 Here is the data read in:
@@ -104,7 +157,6 @@ A tidy data tibble for priors
 tidy_male_prisoner_prior <- tidy_up(male_prisoner_prior, y = "Priors")
 tidy_female_prisoner_prior <- tidy_up(female_prisoner_prior, y = "Priors")
 tidy_prisoner_prior <- tidyjoin(tidy_male_prisoner_prior, tidy_female_prisoner_prior)
-tidy_prisoner_prior
 ```
 ##Most serious offence
 Here is the data read in:
@@ -117,7 +169,6 @@ A tidy data tibble for offences
 tidy_male_prisoner_offence <- tidy_up(male_prisoner_offence, y = "Offence")
 tidy_female_prisoner_offence <- tidy_up(female_prisoner_offence, y = "Offence")
 tidy_prisoner_offence <- tidyjoin(tidy_male_prisoner_offence, tidy_female_prisoner_offence)
-tidy_prisoner_offence
 ```
 #Prisoner Level of Education
 Here is the data read in:
@@ -130,7 +181,6 @@ A tidy data tibble for education level
 tidy_male_prisoner_edu <- tidy_up(male_prisoner_edu, y = "Education")
 tidy_female_prisoner_edu <- tidy_up(female_prisoner_edu, y = "Education")
 tidy_prisoner_edu <- tidyjoin(tidy_male_prisoner_edu, tidy_female_prisoner_edu)
-tidy_prisoner_edu
 ```
 #Prisoner Employment Status
 Here is the data read in:
@@ -143,7 +193,7 @@ A tidy data tibble for employment status
 tidy_male_prisoner_emp <- tidy_up(male_prisoner_emp, y = "Employment")
 tidy_female_prisoner_emp <- tidy_up(female_prisoner_emp, y = "Employment")
 tidy_prisoner_emp <- tidyjoin(tidy_male_prisoner_emp, tidy_female_prisoner_emp)
-tidy_prisoner_emp
+
 ```
 #Prisoner Marital status
 Here is the data read in:
@@ -156,7 +206,6 @@ A tidy data tibble for marital status
 tidy_male_prisoner_mar <- tidy_up(male_prisoner_mar, y = "Marital Status")
 tidy_female_prisoner_mar <- tidy_up(female_prisoner_mar, y = "Marital Status")
 tidy_prisoner_mar <- tidyjoin(tidy_male_prisoner_mar, tidy_female_prisoner_mar)
-tidy_prisoner_mar
 ```
 # Prisoner country of birth
 This data is not gender based. Here is the data read in:
@@ -167,26 +216,25 @@ filter(!is.na(...1)) %>% filter(!is.na(...3))
 ```
 a tidy data tibble
 ```{r}
-tidy_prisoner_birth <- tidy_up(prisoner_birth, y = "Birthplace")
- tidy_prisoner_birth <- tidy_prisoner_birth %>% arrange(year)
-  tidy_prisoner_birth <- tidy_prisoner_birth[, c(2,1,3)]
-  tidy_prisoner_birth$year <- dmy(tidy_prisoner_birth$year)
-  tidy_prisoner_birth$number_of_prisoners <- as.numeric(tidy_prisoner_birth$number_of_prisoners)
-tidy_prisoner_birth
+tidy_prisoner_birth <- tidy_up(prisoner_birth, y = "Birthplace") %>%
+  arrange(year)
+tidy_prisoner_birth <- tidy_prisoner_birth[, c(2,1,3)]
+tidy_prisoner_birth$year <- dmy(tidy_prisoner_birth$year)
+tidy_prisoner_birth$number_of_prisoners <- as.numeric(tidy_prisoner_birth$number_of_prisoners)
 ```
-# Sentenced and unsentenced prior
+# Sentenced and unsentenced 
 Here is the data read in:
 ```{r message= FALSE}
 male_prisoner_status <- readitin(s = 11, r = "C8:AA11")
 female_prisoner_status <- readitin(s = 11, r = "C16:AA19")
 ```
-we need to alter the tidy_up function to take accunt of the diffrent data layout
+we need to alter the tidy_up function to take account of the diffrent data layout
 ```{r}
 tidy_upup <- function(x,y) {
-#x = the extracted data frame, y = descriptive variable
+#x = the extracted tibble, y = descriptive variable
 #remove subtotal row
 x <- x %>% slice(-3) %>%
-#remove percentage columns
+#remove percentage columns and label "unsentenced" rows
 select(c(-3, -5, -7, -9, -11, -13, -15, -17, -19, -21, -23, -25 )) %>%
     mutate_all(list(~str_replace_na(., replacement = "Unsentenced" )))
 # label descriptive variable and dates
@@ -198,18 +246,16 @@ return(x)
 ```
 A tidy data tibble showing prisoner legal status:
 ```{r}
-tidy_male_prisoner_status <- tidy_upup(male_prisoner_status, y = "Status")
-tidy_female_prisoner_status <- tidy_upup(female_prisoner_status, y = "Status")
-  tidy_male_prisoner_status <- tidy_male_prisoner_status %>% mutate(gender = "Male")
-  tidy_female_prisoner_status <- tidy_female_prisoner_status %>% mutate(gender = "Female")
+tidy_male_prisoner_status <- tidy_upup(male_prisoner_status, y = "Status") %>%
+mutate(gender = "Male")  
+tidy_female_prisoner_status <- tidy_upup(female_prisoner_status, y = "Status") %>%
+mutate(gender = "Female")  
   #join the two tibbles
-  tidy_prisoner_status <-bind_rows(tidy_male_prisoner_status,tidy_female_prisoner_status)
-  tidy_prisoner_status <- tidy_prisoner_status %>% 
+  tidy_prisoner_status <-bind_rows(tidy_male_prisoner_status,tidy_female_prisoner_status) %>%
   arrange(year)
   tidy_prisoner_status <- tidy_prisoner_status[, c(2,1,3)]
   tidy_prisoner_status$year <- dmy(tidy_prisoner_status$year)
   tidy_prisoner_status$number_of_prisoners <- as.numeric(tidy_prisoner_status$number_of_prisoners)
-  tidy_prisoner_status
 ```
 ## Cleaning the data - Imprisonment rate
 Data regarding Imprisonment Rate is in Table 1.6. The code blocks below tidy up the male and female data separately and then join them into one tidy data tibble showing Imprisonment Rate across the time period.
@@ -225,15 +271,15 @@ tidy_rate <- function(x,y) {
 #remove column 2 (blank)
 x <- x %>% select(1,3:14)
 # label Rate and dates
-colnames(x) <- c("Age", "30/06/07", "30/06/08", "30/06/09", "30/06/10", "30/06/11", "30/06/12", "30/06/13", "30/06/14", "30/06/15", "30/06/16", "30/06/17", "30/06/18")
+colnames(x) <- c(y, "30/06/07", "30/06/08", "30/06/09", "30/06/10", "30/06/11", "30/06/12", "30/06/13", "30/06/14", "30/06/15", "30/06/16", "30/06/17", "30/06/18")
 #transpose rows and columns
-x <- x %>% pivot_longer(-y, names_to = "year", values_to = "number_of_prisoners")
+x <- x %>% pivot_longer(-y, names_to = "year", values_to = "Rate_per_100K")
 }
 ```
-A tidy data tibble showing male prisoner Rate across 2007-2018:
+A tidy data tibble showing prisoner rate across 2007-2018:
 ```{r}
-tidy_male_prisoner_rate <- tidy_rate(male_prisoner_rate, y = "Rate_per_100K")
-tidy_female_prisoner_rate <- tidy_rate(female_prisoner_rate, y = "Rate_per_100K")
+tidy_male_prisoner_rate <- tidy_rate(male_prisoner_rate, y = "Age")
+tidy_female_prisoner_rate <- tidy_rate(female_prisoner_rate, y = "Age")
 ```
 The tidyjoin function doesn't work for non -"prisoner numbers" data sets.The code below joins male and female tibbles together:
 ```{r}
@@ -242,12 +288,11 @@ The tidyjoin function doesn't work for non -"prisoner numbers" data sets.The cod
   #join the two tibbles
   tidy_prisoner_rate <-bind_rows(tidy_male_prisoner_rate, tidy_female_prisoner_rate) %>% 
     mutate_all(list(~str_replace(.,"Under 20", "0-20" ))) %>% 
-    mutate_all(list(~str_replace(.,"60-64", "60-150" )))
-  tidy_prisoner_rate <- tidy_prisoner_rate %>% arrange(year)
+    mutate_all(list(~str_replace(.,"60-64", "60-150" ))) %>% 
+    arrange(year)
   tidy_prisoner_rate <- tidy_prisoner_rate[, c(2,1,4,3)]
   tidy_prisoner_rate$year <- dmy(tidy_prisoner_rate$year)
-  tidy_prisoner_rate$rate_per_100K <- as.numeric(tidy_prisoner_rate$rate_per_100K)
-  tidy_prisoner_rate
+  tidy_prisoner_rate$Rate_per_100K <- as.numeric(tidy_prisoner_rate$Rate_per_100K)
 ```
 ## Consolidating Age and Imprisonment rate data
 For reasons unknown, the age bin values in "Prisoner Age"" stop at 60, but they stop at 65 in "Imprisonment Rate".To consolidate this data alongside the age data, we need to combine the "60-64"" and "65 and Over" rates into a comparable "60-150" bin.
@@ -255,22 +300,20 @@ For reasons unknown, the age bin values in "Prisoner Age"" stop at 60, but they 
 #select values to be combined
 f <- tidy_prisoner_rate %>% filter(Age %in% c("65 and over","60-150")) 
 #combine rates
-g <- f %>% group_by(year, gender) %>% summarise(rate_per_100K = sum(rate_per_100K))
+g <- f %>% group_by(year, gender) %>% summarise(Rate_per_100K = sum(Rate_per_100K))
 #create a "matching tibble"
 h <- g %>% mutate(Age = "60-150")
-col_order <- c("Age", "gender", "year", "rate_per_100K")
+col_order <- c("Age", "gender", "year", "Rate_per_100K")
 h <- h[, col_order]
 h
 #remove "unwanted values" from tidy_prisoner_rate
 tidy_prisoner_rate <- tidy_prisoner_rate %>% filter(!Age %in% c("65 and over","60-150")) %>%
 #join the consolidated data
 bind_rows(h) %>% arrange(year)
-#define the set for EDA
-imprisonment.rate <- tidy_prisoner_rate
 ```
 HERE IS A TIDY DATA TIBBLE FOR AGE AND IMPRISONMENT RATES
 ```{r}
-prisoners <- tidy_prisoner_age %>% left_join(imprisonment.rate, by = c("Age", "gender", "year"))
+prisoners <- tidy_prisoner_age %>% left_join(tidy_prisoner_rate, by = c("Age", "gender", "year"))
 prisoners
 ```
 
