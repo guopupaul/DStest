@@ -24,7 +24,7 @@ To add some rigor to choosing an optimal style of play and setting effective per
 
 ##The data
 Load the following packages:
-```{r}
+```{r message = FALSE}
 library(stringr)
 library(dplyr)
 library(readxl)
@@ -34,8 +34,6 @@ library("FactoMineR")
 library("factoextra")
 library("corrplot")
 library(pROC)
-library(caret)
-library(e1071)
 library(class)
 ```
 Here is the data read in:
@@ -43,34 +41,37 @@ Here is the data read in:
 boxscores <- read_excel("YL1 2019.xlsx", sheet = 2, range = "A1:Y271",col_names = TRUE)
 glimpse(boxscores)
 ```
+##Normal
+```{r}
+library(outliers)
+hist(boxscores$TP,breaks = 30,xlim=c(25,150),ylim=c(0,20),col="gray")
+qqnorm(boxscores$TP)
+qqline(boxscores$TP)
+w <- boxscores %>% filter(RESULT == "WIN")
+l <- boxscores %>% filter(RESULT == "LOSS")
+hist(w$TP,breaks = 30,xlim=c(25,150),ylim=c(0,20),col="gray")
+qqnorm(w$TP)
+qqline(w$TP)
+summary(boxscores$TP)
+summary(w$TP)
+summary(l$TP)
+
+grubbs.test(w$TP, type = 10, opposite = FALSE, two.sided = FALSE)
+grubbs.test(w$TP, type = 10, opposite = TRUE, two.sided = FALSE)
+grubbs.test(l$TP, type = 11, opposite = FALSE, two.sided = FALSE)
+```
+
 
 ##Data pre-processing
 To prepare a data frame with required numeric variables for analysis:
 ```{r}
 #remove unneeded categorical variables and aggregate variables
-boxscores.active <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", TR, MIN)) %>%
+boxscores.trim <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", TR, MIN, TP)) %>%
 #convert RESULT to a binomial variable
 mutate(RESULT = ifelse(RESULT == "WIN", 1, 0))
 #coerce to  a numeric data frame
-boxscores.active <- sapply(boxscores.active, as.numeric) %>%
-as.data.frame(boxscores.active)
-##Remove outlier games
-w <- boxscores.active %>% filter(RESULT == 1)
-l <- boxscores.active %>% filter(RESULT == 0)
-summary(w$TP)
-ggplot(w, aes(x = TP)) + geom_histogram(binwidth = 1)
-table(w$TP)
-#Win outliers are below 70 and above 117
-summary(l$TP)
-ggplot(l, aes(x = TP)) + geom_histogram(binwidth = 1)
-table(l$TP)
-#LOss outliers are below 56 and above 98
-wtrim <- w %>% filter(TP >=70) %>% filter(TP < 118)
-ltrim <- l %>% filter(TP >=56) %>% filter(TP < 99)
-boxscores.trim <- rbind(w,l)
-#while TP helped us identify outlier games, it can be viewed as an aggregate variable, so we'll remove it
-boxscores.trim <- boxscores.trim %>% select(- TP)
-glimpse(boxscores.trim)
+boxscores.trim <- sapply(boxscores.trim, as.numeric) %>%
+as.tibble(boxscores.trim)
 ```
 
 #define training(75%) and test(25%) sets
@@ -134,7 +135,7 @@ An eigenvalue > 1 indicates that PCs account for more variance than accounted by
 
 You can also limit the number of component to that number that accounts for a certain fraction of the total variance. For example, if you are satisfied with 70% of the total variance explained then use the number of components to achieve that.
 
-In this case, 5 dimensions > 1 and cover and cover 70% of the variance.
+In this case, 5 dimensions > 1 and cover and cover 69% of the variance.
 An alternative method to determine the number of principal components is to look at a Scree Plot, which is the plot of eigenvalues ordered from largest to the smallest. The number of component is determined at the point, beyond which the remaining eigenvalues are all relatively small and of comparable size
 ```{r}
 fviz_screeplot(res.pca, addlabels = TRUE, ylim = c(0, 25))
@@ -152,7 +153,7 @@ corrplot(var$contrib, is.corr=FALSE)
 #a visualisation
 fviz_contrib(res.pca, choice = "var", axes = 1:5, top = 17)
 ```
-The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/18. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
+The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/17. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
 
 
 ##Using hierarchical clustering
