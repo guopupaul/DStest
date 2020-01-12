@@ -5,7 +5,7 @@ output: html_notebook
 ###Using Basketball boxscore elements and machine learning to identify winning team performance targets
 
 ##Introduction
-The fundamental question facing basketball teams in competition is "what do we have to do to win?". Typically, the coach's philosophy and gameplan, team member skills and abilities, overall team offensive performance and overall team defensive performance combine in varying ways to determine who wins. Data Analytics in professional levels of basketball has rapidly grown to quantify these factors in very sophisticated ways. The insights derived are actively used to modify style of play and performance targets to enable more likely wins.
+The fundamental question facing basketball teams in competition is "what do we have to do to win?". Typically, the coach's philosophy and gameplan, individual team member skills and abilities, overall team offensive performance and overall team defensive performance combine in varying ways to determine who wins. Data Analytics in professional levels of basketball has rapidly grown to quantify these factors in very sophisticated ways. The insights derived are actively used to modify style of play and performance targets to enable more likely wins.
 
 I'm an assitant coach one level below professional basketball. Applying current cutting edge techniques in basketball analytics at my level is problematic for two reasons:
 1. the resourcing to collect and analyse the required detailed data in our league is not readily available, and
@@ -44,21 +44,26 @@ glimpse(boxscores)
 ##Normal
 ```{r}
 library(outliers)
-hist(boxscores$TP,breaks = 30,xlim=c(25,150),ylim=c(0,20),col="gray")
-qqnorm(boxscores$TP)
-qqline(boxscores$TP)
 w <- boxscores %>% filter(RESULT == "WIN")
 l <- boxscores %>% filter(RESULT == "LOSS")
 hist(w$TP,breaks = 30,xlim=c(25,150),ylim=c(0,20),col="gray")
 qqnorm(w$TP)
 qqline(w$TP)
-summary(boxscores$TP)
+hist(l$TP,breaks = 30,xlim=c(25,150),ylim=c(0,20),col="gray")
+qqnorm(l$TP)
+qqline(l$TP)
 summary(w$TP)
 summary(l$TP)
-
-grubbs.test(w$TP, type = 10, opposite = FALSE, two.sided = FALSE)
-grubbs.test(w$TP, type = 10, opposite = TRUE, two.sided = FALSE)
-grubbs.test(l$TP, type = 11, opposite = FALSE, two.sided = FALSE)
+w_quartiles <- quantile(w$TP)
+upper_th <- w_quartiles[4] + 
+   1.5 * (w_quartiles[4] - w_quartiles[2])
+houtliers <- sort(unique(w$TP[w$TP > upper_th]))
+houtliers
+l_quartiles <- quantile(l$TP)
+lower_th <- l_quartiles[2] - 
+   1.5 * (l_quartiles[4] - l_quartiles[2])
+loutliers <- sort(unique(l$TP[w$TP < lower_th]))
+loutliers
 ```
 
 
@@ -70,8 +75,8 @@ boxscores.trim <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", TR, MI
 #convert RESULT to a binomial variable
 mutate(RESULT = ifelse(RESULT == "WIN", 1, 0))
 #coerce to  a numeric data frame
-boxscores.trim <- sapply(boxscores.trim, as.numeric) %>%
-as.tibble(boxscores.trim)
+boxscores.trim <- sapply(boxscores.trim, as.numeric)
+boxscores.trim
 ```
 
 #define training(75%) and test(25%) sets
@@ -84,23 +89,6 @@ boxscores.trim.train <- boxscores.trim[1:bound, ]
 boxscores.trim.test <- boxscores.trim[(bound+1):nrow(boxscores.trim), ]
 ```
 
-##logistic regression model
-
-```{r}
-#build the model
-boxscores_model <- glm(RESULT ~., data = boxscores.trim.train,
-                    family = binomial())
-summary(boxscores_model)
-
-
-#check accuracy of model
-boxscores.trim.train$win_prob <- predict(boxscores_model, type = "response")
-ROC <- roc(boxscores.trim.train$RESULT, boxscores.trim.train$win_prob)
-plot(ROC, col = "red")
-auc(ROC)
-```
-The high AUC score for the logistic regression model (0.9844) suggests the model performs well i.e. it ranks a random positive example more highly than a random negative example.
-
 ```{r}
 #test model
 boxscores.trim.test$win_prob <- predict(boxscores_model, newdata = boxscores.trim.test, type = "response")
@@ -110,23 +98,13 @@ actual <- boxscores.trim.test$RESULT
 as.matrix(table(actual, fit))
 mean(boxscores.trim.test$win_pred == boxscores.trim.test$RESULT)
 ```
- The mean equivalence between predicted wins and actual wins in the test data (0.85294) suggests the model's accuracy will make 85 correct predictions out of 100 total examples.
 
- The confusion matrix also provides information about the precision and recall(proportion of actual wins identified correctly) of the model.
-  The accuracy rate is (25/30) = 0.83333. When the model predicts a win, it is correct 83% of the time. 
-
- 
-Because we know that the total number of wins and losses are equal in the dataset, we can determine if there is prediction bias in the model:
-```{r}
-mean(fit - actual)
-```
-By subtracting the average of actual wins from the average of predicted wins, the result is 0, which  confirms no material prediction bias in the model.
 ##Feature selection
 ##Principal Component Analysis
 
 ```{r}
 # remove response variable
-boxscores.pca <- boxscores.trim %>% select(-RESULT)
+boxscores.pca <- boxscores.trim[, 1:16]
 res.pca <- PCA(boxscores.pca, graph = FALSE)
 eig.val <- get_eigenvalue(res.pca)
 eig.val
@@ -151,9 +129,9 @@ It’s possible to use the function corrplot() [corrplot package] to highlight t
 ```{r}
 corrplot(var$contrib, is.corr=FALSE) 
 #a visualisation
-fviz_contrib(res.pca, choice = "var", axes = 1:5, top = 17)
+fviz_contrib(res.pca, choice = "var", axes = 1:5, top = 16)
 ```
-The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/17. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
+The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/16. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
 
 
 ##Using hierarchical clustering
