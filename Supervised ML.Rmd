@@ -71,7 +71,7 @@ loutliers
 To prepare a data frame with required numeric variables for analysis:
 ```{r}
 #remove unneeded categorical variables and aggregate variables
-boxscores.trim <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", TR, MIN, TP)) %>%
+boxscores.trim <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", TR, PTOS, PITP, "2CPS", MIN, TP)) %>%
 #convert RESULT to a binomial variable
 mutate(RESULT = ifelse(RESULT == "WIN", 1, 0))
 #coerce to  a numeric data frame
@@ -104,8 +104,9 @@ mean(boxscores.trim.test$win_pred == boxscores.trim.test$RESULT)
 
 ```{r}
 # remove response variable
-boxscores.pca <- boxscores.trim[, 1:16]
+boxscores.pca <- boxscores.trim[, 1:13]
 res.pca <- PCA(boxscores.pca, graph = FALSE)
+#note that the function 'PCA' automatically standardises the data
 eig.val <- get_eigenvalue(res.pca)
 eig.val
 ```
@@ -113,7 +114,7 @@ An eigenvalue > 1 indicates that PCs account for more variance than accounted by
 
 You can also limit the number of component to that number that accounts for a certain fraction of the total variance. For example, if you are satisfied with 70% of the total variance explained then use the number of components to achieve that.
 
-In this case, 5 dimensions > 1 and cover and cover 69% of the variance.
+In this case, 5 dimensions > 1 and cover and cover 70% of the variance.
 An alternative method to determine the number of principal components is to look at a Scree Plot, which is the plot of eigenvalues ordered from largest to the smallest. The number of component is determined at the point, beyond which the remaining eigenvalues are all relatively small and of comparable size
 ```{r}
 fviz_screeplot(res.pca, addlabels = TRUE, ylim = c(0, 25))
@@ -129,9 +130,9 @@ It’s possible to use the function corrplot() [corrplot package] to highlight t
 ```{r}
 corrplot(var$contrib, is.corr=FALSE) 
 #a visualisation
-fviz_contrib(res.pca, choice = "var", axes = 1:5, top = 16)
+fviz_contrib(res.pca, choice = "var", axes = 1:5, top = 13)
 ```
-The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/16. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
+The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/13. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
 
 
 ##Using hierarchical clustering

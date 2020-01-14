@@ -30,57 +30,16 @@ Table 1.6 All prisoners by sex, Imprisonment Rate per 100,000 population
 Table 1.7 All prisoners by sex, Known prior adult imprisonment
 Table 1.8 All prisoners by sex, Sentenced/Unsentenced
 Table 1.11 All prisoners by sex, Most serious charge/offence
-Table 1.12 All prisoners by sex, Country of birth
+Table 1.12 All prisoners by Country of birth
 Table 1.13 All prisoners by sex, Highest level of education
 Table 1.14 All prisoners by sex, Employment status
 Table 1.15 All prisoners by sex, Marital Status
 
- 
-
- 
-Number of NaN values in monthly_rent_payment column:  
-
- 
+There are no missing values or nil values in the tables included for analysis
 
 ##Data cleaning: 
-Data types of variables: There are four data types associated with the variables in the data set: 
-
-Boolean: Integer Boolean (0 or 1), Character Boolean (yes or no). Columns such as paredblolad, noelec, etc. 
-
-Float data type. For example, meaneduc, overcrowding, etc. 
-
-Integer data type. For example, age, rent, rooms, tamviv, etc. 
-
-Alpha-numeric. For example, Id, idhogar.
-The original column names have been renamed to their shortened English equivalent descriptions for easy reference, understanding, and communication. They can be found in the ‘changed_column_names.csv’. Henceforth, data will be referenced through the renamed columns. 
-
-Missing value treatment and Feature Engineering: From the research questions, R1, R2, and R3, it can be interpreted that the unit of analysis is a household. However, each record in the data set describes the attributes of a single person in the household. People belonging to a single household can be grouped together by the ‘household_identifier’ column as they have the same identifier value assigned to each of them. ‘Household_identifer’ values are unique to every household. Additionally, the same value of the ‘target’ class (poverty level) is assigned to all the people in a single household. 
-
- 
-
-##Answers to Research Questions: 
-Answer for R1: Yes. The Random Forest classifier has been constructed to successfully identify the level of poverty for Costa Rican households with good performance metrics. With the availability of more data, the performance of the model can be improved. 
-Answer for R2: Yes. The fifteen most important columns that determine the level of poverty for a household, in the decreasing order of their importance are, ‘years_of_schooling’, ‘meaneduc’, ‘age_in_years’, ‘dependency’, ‘overcrowding’, ‘number_of_all_rooms_in_the_house’, ‘no_of_mobile_phones’, ‘edjefe’, ‘years_of_education_of_male_head_of_household_squared’, ‘number_of_children_0_to_19_in_household’, ‘monthly_rent_payment’, ‘edjefa’, ‘total_females_in_the_household’, ‘bedrooms’, ‘number_of_persons_living_in_the_household’. 
-Answer for R3: Yes. There is a strong relationship between the features related to the entities mentioned in the question R3 to the level of poverty for a household. 
-Answer for R4: K-Means clustering technique does not perform well in clustering the records with the same poverty level together. Hence, in the absence of the ‘target’ column, and with the given features in R3, K-Means clustering algorithm cannot help in assigning the class label for a person/individual. 
-
-##References: 
-Hadley Wickham, Romain François, Lionel Henry and Kirill Müller (2019). dplyr: A Grammar of Data Manipulation. R package version 0.8.3. https://CRAN.R-project.org/package=dplyr 
-
-Hadley Wickham (2019). stringr: Simple, Consistent Wrappers for Common String Operations. R package version 1.4.0. https://CRAN.R-project.org/package=stringr 
-
-H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016. Tableau Software (2019). Retrieved from https://www.tableau.com/ 
-
-
-
- 
-
-
-
- 
-The data layout varies across the workbook.
-Known priors, charge/offence, education, employment, age and marital status have a uniform layout and can be cleaned with the same functions.
-Sentenced and unsentenced, country of birth, and imprisonment rate require customised cleaning.
+The dimensions for data extracted for Age, known priors, most serious charge, education, employmnet and marital status are the same. A common function can be used to tidy up geneder-based data and a second function can be used to join the gender based data together.
+The remaining data requires individualised cleaning.
 
 Load the following packages:
 ```{r message = FALSE}
@@ -89,11 +48,6 @@ library(readxl)
 library(lubridate)
 ```
 
-## Cleaning steps
-1. Import data sets into R
-2. use a function to put data into a tidy format
-3. Use a function to join separate gender-based tibbles into one tibble (with a gender variable).
-the data is then ready for EDA
 ### A function to import the data
 ```{r}
 readitin <- function(s,r)  {
@@ -133,21 +87,19 @@ tidyjoin <- function(m,f)  {
   return(mf)
 }
 ```
-## Prisoner age
-
+###Prisoner age
 Here is the data read in:
 ```{r message = FALSE}
 male_prisoner_age <- readitin(s = 8, r = "B6:AA15")
 female_prisoner_age <- readitin(s = 8, r = "B21:AA30")
 ```
-
 A tidy data tibble showing prisoner age across 2007-2018:
 ```{r}
 tidy_male_prisoner_age <- tidy_up(male_prisoner_age, y = "Age")
 tidy_female_prisoner_age <- tidy_up(female_prisoner_age, y = "Age")
 tidy_prisoner_age <- tidyjoin(tidy_male_prisoner_age, tidy_female_prisoner_age)
 ```
-## Known prior adult imprisonment
+###Known prior adult imprisonment
 Here is the data read in:
 ```{r message= FALSE}
 male_prisoner_prior <- readitin(s = 10, r = "B7:AA12")
@@ -159,7 +111,7 @@ tidy_male_prisoner_prior <- tidy_up(male_prisoner_prior, y = "Priors")
 tidy_female_prisoner_prior <- tidy_up(female_prisoner_prior, y = "Priors")
 tidy_prisoner_prior <- tidyjoin(tidy_male_prisoner_prior, tidy_female_prisoner_prior)
 ```
-##Most serious offence
+###Most serious offence
 Here is the data read in:
 ```{r message= FALSE}
 male_prisoner_offence <- readitin(s = 14, r = "B6:AA17")
@@ -171,7 +123,7 @@ tidy_male_prisoner_offence <- tidy_up(male_prisoner_offence, y = "Offence")
 tidy_female_prisoner_offence <- tidy_up(female_prisoner_offence, y = "Offence")
 tidy_prisoner_offence <- tidyjoin(tidy_male_prisoner_offence, tidy_female_prisoner_offence)
 ```
-#Prisoner Level of Education
+###Prisoner Level of Education
 Here is the data read in:
 ```{r message= FALSE}
 male_prisoner_edu <- readitin(s = 16, r = "B6:AA13")
@@ -183,7 +135,7 @@ tidy_male_prisoner_edu <- tidy_up(male_prisoner_edu, y = "Education")
 tidy_female_prisoner_edu <- tidy_up(female_prisoner_edu, y = "Education")
 tidy_prisoner_edu <- tidyjoin(tidy_male_prisoner_edu, tidy_female_prisoner_edu)
 ```
-#Prisoner Employment Status
+###Prisoner Employment Status
 Here is the data read in:
 ```{r message = FALSE}
 male_prisoner_emp <- readitin(s = 17, r = "B6:AA12")
@@ -196,7 +148,7 @@ tidy_female_prisoner_emp <- tidy_up(female_prisoner_emp, y = "Employment")
 tidy_prisoner_emp <- tidyjoin(tidy_male_prisoner_emp, tidy_female_prisoner_emp)
 
 ```
-#Prisoner Marital status
+###Prisoner Marital status
 Here is the data read in:
 ```{r message= FALSE}
 male_prisoner_mar <- readitin(s = 18, r = "B6:AA12")
@@ -208,7 +160,7 @@ tidy_male_prisoner_mar <- tidy_up(male_prisoner_mar, y = "Marital Status")
 tidy_female_prisoner_mar <- tidy_up(female_prisoner_mar, y = "Marital Status")
 tidy_prisoner_mar <- tidyjoin(tidy_male_prisoner_mar, tidy_female_prisoner_mar)
 ```
-# Prisoner country of birth
+###Prisoner country of birth
 This data is not gender based. Here is the data read in:
 ```{r message= FALSE}
 prisoner_birth <- readitin(s = 15, r = "B6:AA44") %>%
@@ -223,7 +175,7 @@ tidy_prisoner_birth <- tidy_prisoner_birth[, c(2,1,3)]
 tidy_prisoner_birth$year <- dmy(tidy_prisoner_birth$year)
 tidy_prisoner_birth$number_of_prisoners <- as.numeric(tidy_prisoner_birth$number_of_prisoners)
 ```
-# Sentenced and unsentenced 
+###Sentenced and unsentenced 
 Here is the data read in:
 ```{r message= FALSE}
 male_prisoner_status <- readitin(s = 11, r = "C8:AA11")
@@ -258,9 +210,7 @@ mutate(gender = "Female")
   tidy_prisoner_status$year <- dmy(tidy_prisoner_status$year)
   tidy_prisoner_status$number_of_prisoners <- as.numeric(tidy_prisoner_status$number_of_prisoners)
 ```
-## Cleaning the data - Imprisonment rate
-Data regarding Imprisonment Rate is in Table 1.6. The code blocks below tidy up the male and female data separately and then join them into one tidy data tibble showing Imprisonment Rate across the time period.
-
+###Imprisonment rate
 Here is the male data read in:
 ```{r message= FALSE}
 male_prisoner_rate <- readitin(s= 9, r = "B6:O16")
@@ -306,7 +256,6 @@ g <- f %>% group_by(year, gender) %>% summarise(Rate_per_100K = sum(Rate_per_100
 h <- g %>% mutate(Age = "60-150")
 col_order <- c("Age", "gender", "year", "Rate_per_100K")
 h <- h[, col_order]
-h
 #remove "unwanted values" from tidy_prisoner_rate
 tidy_prisoner_rate <- tidy_prisoner_rate %>% filter(!Age %in% c("65 and over","60-150")) %>%
 #join the consolidated data
@@ -315,7 +264,31 @@ bind_rows(h) %>% arrange(year)
 HERE IS A TIDY DATA TIBBLE FOR AGE AND IMPRISONMENT RATES
 ```{r}
 prisoners <- tidy_prisoner_age %>% left_join(tidy_prisoner_rate, by = c("Age", "gender", "year"))
-prisoners
 ```
+
+ 
+
+##Answers to Research Questions: 
+
+
+##References: 
+Hadley Wickham, Romain François, Lionel Henry and Kirill Müller (2019). dplyr: A Grammar of Data Manipulation. R package version 0.8.3. https://CRAN.R-project.org/package=dplyr 
+
+Hadley Wickham (2019). stringr: Simple, Consistent Wrappers for Common String Operations. R package version 1.4.0. https://CRAN.R-project.org/package=stringr 
+
+H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016. Tableau Software (2019). Retrieved from https://www.tableau.com/ 
+
+
+
+ 
+
+
+
+ 
+The data layout varies across the workbook.
+Known priors, charge/offence, education, employment, age and marital status have a uniform layout and can be cleaned with the same functions.
+Sentenced and unsentenced, country of birth, and imprisonment rate require customised cleaning.
+
+
 
 
