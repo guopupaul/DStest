@@ -65,7 +65,7 @@ lower_th <- l_quartiles[2] -
 loutliers <- sort(unique(l$TP[w$TP < lower_th]))
 loutliers
 ```
-
+the above shows there are no statistically significant outliers in the data.
 
 ##Data pre-processing
 To prepare a data frame with required numeric variables for analysis:
@@ -79,25 +79,7 @@ boxscores.trim <- sapply(boxscores.trim, as.numeric)
 boxscores.trim
 ```
 
-#define training(75%) and test(25%) sets
-```{r}
-bound <- floor((nrow(boxscores.trim)/4)*3) 
-#sample rows
-boxscores.trim <- boxscores.trim[sample(nrow(boxscores.trim)), ] 
-#get training set
-boxscores.trim.train <- boxscores.trim[1:bound, ]              
-boxscores.trim.test <- boxscores.trim[(bound+1):nrow(boxscores.trim), ]
-```
 
-```{r}
-#test model
-boxscores.trim.test$win_prob <- predict(boxscores_model, newdata = boxscores.trim.test, type = "response")
-boxscores.trim.test$win_pred <- ifelse(boxscores.trim.test$win_prob > 0.5, 1, 0)
-fit<- boxscores.trim.test$win_pred
-actual <- boxscores.trim.test$RESULT
-as.matrix(table(actual, fit))
-mean(boxscores.trim.test$win_pred == boxscores.trim.test$RESULT)
-```
 
 ##Feature selection
 ##Principal Component Analysis
@@ -134,6 +116,26 @@ fviz_contrib(res.pca, choice = "var", axes = 1:5, top = 13)
 ```
 The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/13. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
 
+*************************************************************
+#define training(75%) and test(25%) sets
+```{r}
+bound <- floor((nrow(boxscores.trim)/4)*3) 
+#sample rows
+boxscores.trim <- boxscores.trim[sample(nrow(boxscores.trim)), ] 
+#get training set
+boxscores.trim.train <- boxscores.trim[1:bound, ]              
+boxscores.trim.test <- boxscores.trim[(bound+1):nrow(boxscores.trim), ]
+```
+
+```{r}
+#test model
+boxscores.trim.test$win_prob <- predict(boxscores_model, newdata = boxscores.trim.test, type = "response")
+boxscores.trim.test$win_pred <- ifelse(boxscores.trim.test$win_prob > 0.5, 1, 0)
+fit<- boxscores.trim.test$win_pred
+actual <- boxscores.trim.test$RESULT
+as.matrix(table(actual, fit))
+mean(boxscores.trim.test$win_pred == boxscores.trim.test$RESULT)
+```
 
 ##Using hierarchical clustering
 ```{r}
