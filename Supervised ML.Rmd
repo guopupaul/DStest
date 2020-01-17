@@ -25,16 +25,15 @@ To add some rigor to choosing an optimal style of play and setting effective per
 ##The data
 Load the following packages:
 ```{r message = FALSE}
-library(stringr)
-library(dplyr)
+library(tidyverse)
+library(mlr3verse)
 library(readxl)
-library(tidyr)
-library(ggplot2)
 library("FactoMineR")
 library("factoextra")
 library("corrplot")
 library(pROC)
 library(class)
+library(kknn)
 ```
 Here is the data read in:
 ```{r}
@@ -76,7 +75,6 @@ boxscores.trim <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", TR, PT
 mutate(RESULT = ifelse(RESULT == "WIN", 1, 0))
 #coerce to  a numeric data frame
 boxscores.trim <- sapply(boxscores.trim, as.numeric)
-boxscores.trim
 ```
 
 
@@ -115,17 +113,116 @@ corrplot(var$contrib, is.corr=FALSE)
 fviz_contrib(res.pca, choice = "var", axes = 1:5, top = 13)
 ```
 The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/13. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
+Although 2PM is below the cutoff, we will nclude it for practical reasons
+```{r}
+Boxscores <- boxscores.trim %>% subset(TRUE, c(1:6, 8, 10, 12, 14)) %>%
+data.frame()
+```
+#Machine Learning
+```{r setup, include=FALSE}
+set.seed(88)
+if (!interactive()) {
+  lgr::get_logger("mlr3")$set_threshold("warn")
+}
+```
 
-*************************************************************
+Build a task
+```{r}
+
+Boxscores_tsk = TaskClassif$new(id = "Boxscores", backend = Boxscores.train, target = "RESULT", positive = "1")
+Boxscores_tsk
+```
+
+Define a logistic regression learner
+```{r}
+# Check available learners
+as.data.table(mlr_learners)
+#Define an mlr3 Learner
+lrn <- lrn("classif.log_reg", predict_type = "prob") # shorter way
+```
 #define training(75%) and test(25%) sets
 ```{r}
-bound <- floor((nrow(boxscores.trim)/4)*3) 
-#sample rows
-boxscores.trim <- boxscores.trim[sample(nrow(boxscores.trim)), ] 
-#get training set
-boxscores.trim.train <- boxscores.trim[1:bound, ]              
-boxscores.trim.test <- boxscores.trim[(bound+1):nrow(boxscores.trim), ]
+train_set = sample(Boxscores_tsk$nrow, 0.75 * Boxscores_tsk$nrow)
+test_set = setdiff(seq_len(Boxscores_tsk$nrow), train_set)
 ```
+# Train the Learner on the Task
+
+Train the previously defined learner on the `Boxscores_tsk` task.
+```{r}
+lrn$train(task = Boxscores_tsk, row_ids = train_set)
+```
+
+The learner now contains the trained model:
+```{r}
+class(lrn$model)
+summary(lrn$model)
+```
+### Make Predictions
+
+Use the learner that now stores the model to predict the label on the `Boxscores.test` data.
+```{r}
+# Learner
+pred <- lrn$predict(task = Boxscores_tsk, row_ids = test_set)
+#confusion matrix
+pred$confusion
+```
+
+# chose different measures to score the prediction
+```{r}
+mlr_measures
+msrs = lapply(c("classif.auc", "classif.precision", "classif.recall"), msr)
+pred$score(measures = msrs)
+```
+## Resampling
+
+To automate the test train split we can use resample.
+
+Therefore we need a resampling strategy.
+```{r}
+# show available resampling objects
+mlr_resamplings
+
+# load cross validation
+rds <- rsmp("cv")
+# check how many folds
+rds$param_set$values
+```
+
+We want to do a 5-fold cross-validation:
+```{r}
+# change the folds parameter of the resampling description object
+rds$param_set$values$folds = 5
+
+# execute resampling
+res <- resample(task = Boxscores_tsk, learner = lrn, resampling = rds)
+
+# calculate performance measures with previously defined measures
+res$score(msrs)
+res$aggregate(msrs)
+```
+
+## Benchmarking
+
+We are going to benchmark multiple learners on the task
+The benchmark will use the previously defined 5-fold cross-validation.
+```{r}
+# show learners with properties (again)
+as.data.table(mlr_learners)
+
+# experiments with learners
+design <- benchmark_grid(
+  tasks <- Boxscores_tsk, 
+  learners = lapply(c("classif.log_reg", "classif.kknn", "classif.ranger", "classif.xgboost", "classif.rpart"), lrn), 
+  resamplings = rds)
+
+# conduct benchmark
+res = benchmark(design)
+
+# plot benchmark results
+autoplot(res) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+*************************************************************
+
 
 ```{r}
 #test model
