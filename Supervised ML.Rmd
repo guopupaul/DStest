@@ -92,59 +92,58 @@ eig.val
 ```
 An eigenvalue > 1 indicates that PCs account for more variance than accounted by one of the original variables in standardized data. This is commonly used as a cutoff point for which PCs are retained. This holds true only when the data are standardized.
 
-You can also limit the number of component to that number that accounts for a certain fraction of the total variance. For example, if you are satisfied with 70% of the total variance explained then use the number of components to achieve that.
-
 In this case, 5 dimensions > 1 and cover and cover 70% of the variance.
 An alternative method to determine the number of principal components is to look at a Scree Plot, which is the plot of eigenvalues ordered from largest to the smallest. The number of component is determined at the point, beyond which the remaining eigenvalues are all relatively small and of comparable size
 ```{r}
 fviz_screeplot(res.pca, addlabels = TRUE, ylim = c(0, 25))
 ```
 5 dimensions still looks right.
-The quality of representation of the variables on factor map is called cos2 (square cosine, squared coordinates). You can visualize the cos2 of variables on all the dimensions using the corrplot package:
+The quality of representation of the variables is called cos2 (square cosine, squared coordinates). You can visualize the cos2 of variables on all the dimensions using the corrplot package:
 ```{r}
 var <- get_pca_var(res.pca)
 var
 corrplot(var$cos2, is.corr=FALSE)
 ```
-It’s possible to use the function corrplot() [corrplot package] to highlight the most contributing variables for each dimension:
+It’s possible to use the function corrplot() to highlight the most contributing variables for each dimension:
 ```{r}
 corrplot(var$contrib, is.corr=FALSE) 
 #a visualisation
 fviz_contrib(res.pca, choice = "var", axes = 1:5, top = 13)
 ```
 The red dashed line on the graph above indicates the expected average contribution. If the contribution of the variables were uniform, the expected value would be 1/length(variables) = 1/13. For a given component, a variable with a contribution larger than this cutoff could be considered as important in contributing to the component.
-Although 2PM is below the cutoff, we will nclude it for practical reasons
+Although 2PM is below the cutoff, we will include it for practical reasons
 ```{r}
 Boxscores <- boxscores.trim %>% subset(TRUE, c(1:6, 8, 10, 12, 14)) %>%
 data.frame()
+
 ```
-#Machine Learning
+##Machine Learning
 ```{r setup, include=FALSE}
 set.seed(88)
 if (!interactive()) {
   lgr::get_logger("mlr3")$set_threshold("warn")
 }
 ```
-
-Build a task
+#Build a task
 ```{r}
-
-Boxscores_tsk = TaskClassif$new(id = "Boxscores", backend = Boxscores.train, target = "RESULT", positive = "1")
+#first make response variable a factor for classification purposes
+Boxscores$RESULT <- as.factor(Boxscores$RESULT)
+Boxscores_tsk <- TaskClassif$new(id = "Boxscores", backend = Boxscores, target = "RESULT", positive = "1")
 Boxscores_tsk
 ```
-
-Define a logistic regression learner
+#define training(75%) and test(25%) sets
+```{r}
+train_set <- sample(Boxscores_tsk$nrow, 0.75 * Boxscores_tsk$nrow)
+test_set <- setdiff(seq_len(Boxscores_tsk$nrow), train_set)
+```
+#Define a logistic regression learner
 ```{r}
 # Check available learners
 as.data.table(mlr_learners)
 #Define an mlr3 Learner
 lrn <- lrn("classif.log_reg", predict_type = "prob") # shorter way
 ```
-#define training(75%) and test(25%) sets
-```{r}
-train_set = sample(Boxscores_tsk$nrow, 0.75 * Boxscores_tsk$nrow)
-test_set = setdiff(seq_len(Boxscores_tsk$nrow), train_set)
-```
+
 # Train the Learner on the Task
 
 Train the previously defined learner on the `Boxscores_tsk` task.
@@ -175,9 +174,7 @@ pred$score(measures = msrs)
 ```
 ## Resampling
 
-To automate the test train split we can use resample.
-
-Therefore we need a resampling strategy.
+To automate the test train split we can use resample. Therefore we need a resampling strategy.
 ```{r}
 # show available resampling objects
 mlr_resamplings
@@ -188,10 +185,10 @@ rds <- rsmp("cv")
 rds$param_set$values
 ```
 
-We want to do a 5-fold cross-validation:
+We want to do a 10-fold cross-validation:
 ```{r}
 # change the folds parameter of the resampling description object
-rds$param_set$values$folds = 5
+rds$param_set$values$folds = 10
 
 # execute resampling
 res <- resample(task = Boxscores_tsk, learner = lrn, resampling = rds)
@@ -211,16 +208,21 @@ as.data.table(mlr_learners)
 
 # experiments with learners
 design <- benchmark_grid(
-  tasks <- Boxscores_tsk, 
+  tasks = Boxscores_tsk, 
   learners = lapply(c("classif.log_reg", "classif.kknn", "classif.ranger", "classif.xgboost", "classif.rpart"), lrn), 
   resamplings = rds)
 
 # conduct benchmark
-res = benchmark(design)
+res <- benchmark(design = design)
+res
 
 # plot benchmark results
-autoplot(res) + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+mlr3viz::autoplot(res)
+
 ```
+
+
+
 *************************************************************
 
 
