@@ -40,7 +40,7 @@ Here is the data read in:
 boxscores <- read_excel("YL1 2019.xlsx", sheet = 2, range = "A1:Y271",col_names = TRUE)
 glimpse(boxscores)
 ```
-##Normal
+## Is this a normal distribution?
 ```{r}
 library(outliers)
 w <- boxscores %>% filter(RESULT == "WIN")
@@ -53,11 +53,16 @@ qqnorm(l$TP)
 qqline(l$TP)
 summary(w$TP)
 summary(l$TP)
+```
+Use inter quartile ranges to determine if any scores are outliers
+```{r}
+#win scores too high
 w_quartiles <- quantile(w$TP)
 upper_th <- w_quartiles[4] + 
    1.5 * (w_quartiles[4] - w_quartiles[2])
 houtliers <- sort(unique(w$TP[w$TP > upper_th]))
 houtliers
+#lose scores too low
 l_quartiles <- quantile(l$TP)
 lower_th <- l_quartiles[2] - 
    1.5 * (l_quartiles[4] - l_quartiles[2])
@@ -80,6 +85,7 @@ boxscores.trim <- sapply(boxscores.trim, as.numeric)
 
 
 ##Feature selection
+14 variables is too many, let's look for key values
 ##Principal Component Analysis
 
 ```{r}
@@ -92,7 +98,7 @@ eig.val
 ```
 An eigenvalue > 1 indicates that PCs account for more variance than accounted by one of the original variables in standardized data. This is commonly used as a cutoff point for which PCs are retained. This holds true only when the data are standardized.
 
-In this case, 5 dimensions > 1 and cover and cover 70% of the variance.
+In this case, 5 dimensions > 1 and cover 70% of the variance.
 An alternative method to determine the number of principal components is to look at a Scree Plot, which is the plot of eigenvalues ordered from largest to the smallest. The number of component is determined at the point, beyond which the remaining eigenvalues are all relatively small and of comparable size
 ```{r}
 fviz_screeplot(res.pca, addlabels = TRUE, ylim = c(0, 25))
@@ -201,7 +207,7 @@ res$aggregate(msrs)
 ## Benchmarking
 
 We are going to benchmark multiple learners on the task
-The benchmark will use the previously defined 5-fold cross-validation.
+The benchmark will use the previously defined 10-fold cross-validation.
 ```{r}
 # show learners with properties (again)
 as.data.table(mlr_learners)
@@ -220,7 +226,23 @@ res
 mlr3viz::autoplot(res)
 
 ```
+```{r}
+lrn2 <- lrn("classif.xgboost", predict_type = "prob")
+lrn2$train(task = Boxscores_tsk, row_ids = train_set)
+class(lrn2$model)
+summary(lrn2$model)
+pred <- lrn2$predict(task = Boxscores_tsk, row_ids = test_set)
+#confusion matrix
+pred$confusion
+rds$param_set$values$folds = 10
 
+# execute resampling
+res <- resample(task = Boxscores_tsk, learner = lrn2, resampling = rds)
+
+# calculate performance measures with previously defined measures
+res$score(msrs)
+res$aggregate(msrs)
+```
 
 
 *************************************************************
