@@ -31,9 +31,8 @@ library(readxl)
 library("FactoMineR")
 library("factoextra")
 library("corrplot")
-library(pROC)
 library(class)
-library(kknn)
+library(outliers)
 ```
 Here is the data read in:
 ```{r}
@@ -42,7 +41,6 @@ glimpse(boxscores)
 ```
 ## Is this a normal distribution?
 ```{r}
-library(outliers)
 w <- boxscores %>% filter(RESULT == "WIN")
 l <- boxscores %>% filter(RESULT == "LOSS")
 hist(w$TP,breaks = 30,xlim=c(25,150),ylim=c(0,20),col="gray")
@@ -121,6 +119,7 @@ Although 2PM is below the cutoff, we will include it for practical reasons
 ```{r}
 Boxscores <- boxscores.trim %>% subset(TRUE, c(1:6, 8, 10, 12, 14)) %>%
 data.frame()
+summary(Boxscores)
 
 ```
 ##Machine Learning
@@ -154,7 +153,7 @@ lrn <- lrn("classif.log_reg", predict_type = "prob") # shorter way
 
 Train the previously defined learner on the `Boxscores_tsk` task.
 ```{r}
-lrn$train(task = Boxscores_tsk, row_ids = train_set)
+learner <- lrn$train(task = Boxscores_tsk, row_ids = train_set)
 ```
 
 The learner now contains the trained model:
@@ -209,8 +208,6 @@ res$aggregate(msrs)
 We are going to benchmark multiple learners on the task
 The benchmark will use the previously defined 10-fold cross-validation.
 ```{r}
-# show learners with properties (again)
-as.data.table(mlr_learners)
 
 # experiments with learners
 design <- benchmark_grid(
@@ -226,85 +223,18 @@ res
 mlr3viz::autoplot(res)
 
 ```
-```{r}
-lrn2 <- lrn("classif.xgboost", predict_type = "prob")
-lrn2$train(task = Boxscores_tsk, row_ids = train_set)
-class(lrn2$model)
-summary(lrn2$model)
-pred <- lrn2$predict(task = Boxscores_tsk, row_ids = test_set)
-#confusion matrix
-pred$confusion
-rds$param_set$values$folds = 10
 
-# execute resampling
-res <- resample(task = Boxscores_tsk, learner = lrn2, resampling = rds)
-
-# calculate performance measures with previously defined measures
-res$score(msrs)
-res$aggregate(msrs)
-```
 
 
 *************************************************************
-
-
 ```{r}
-#test model
-boxscores.trim.test$win_prob <- predict(boxscores_model, newdata = boxscores.trim.test, type = "response")
-boxscores.trim.test$win_pred <- ifelse(boxscores.trim.test$win_prob > 0.5, 1, 0)
-fit<- boxscores.trim.test$win_pred
-actual <- boxscores.trim.test$RESULT
-as.matrix(table(actual, fit))
-mean(boxscores.trim.test$win_pred == boxscores.trim.test$RESULT)
-```
-
-##Using hierarchical clustering
-```{r}
-library(tidyverse)  # data manipulation
-library(cluster)    # clustering algorithms
-library(factoextra) # clustering visualization
-library(dendextend) # for comparing two dendrograms
-#fetch data
-boxscores.hc <- boxscores.active %>% select(-RESULT)
-boxscores.hc <- scale(boxscores.hc)
-
-
-```
-
-
-##Using the knn algorithm
-```{r}
-boxscores <- read_excel("YL1 2019.xlsx", sheet = 2, range = "A1:Y271",col_names = TRUE)
-glimpse(boxscores)
-```
-To prepare a tibble with required variables for predictive analysis:
-```{r}
-boxscores.active <- boxscores %>% select(c("3P%", "2P%", TO, OR, FTA, RESULT))
-boxscores.active <- boxscores.active %>% rename(Three_Percent = "3P%", Two_Percent = "2P%")
-#calculate a k value
-indxTrain <- createDataPartition(y = boxscores.active$RESULT, p = 0.75, list = FALSE)
-training <- boxscores.active[indxTrain,]
-testing <- boxscores.active[-indxTrain,]
-set.seed(400)
-ctrl <- trainControl(method = "repeatedcv", repeats = 3)
-knnfit<- train(RESULT ~., data = training, method = "knn", trControl = ctrl, preProcess = c("center", "scale"), tuneLength =20)
-knnfit
-#build model using k = 23
-knn(train = boxscores.active[1:5], test = test, cl = boxscores.active$RESULT, k = 23)
-#model accuracy
-fit <- knn(train = boxscores.active[1:5], test = boxscores.active[1:5], cl = boxscores.active$RESULT, k = 23)
-actual <- boxscores.active$RESULT
-table(actual, fit)
-cm <- as.matrix(table(actual, fit))
-sum(diag(cm))/length(actual)
-```
-
-```{r}
-#define % of training and test set
-bound <- floor((nrow(boxscores.active)/4)*3) 
-#sample rows
-boxscores.active <- boxscores.active[sample(nrow(boxscores.active)), ] 
-#get training set
-boxscores.active.train <- boxscores.active[1:bound, ]              
-boxscores.active.test <- boxscores.active[(bound+1):nrow(boxscores.active), ]
+forecast <- function(x)  {
+x <- as.data.frame(t(x))
+names(x) <- c("DR", "FTA", "FTM", "ST", "TO", "X2PA", "X2PM", "X3PA", "X3PM", "RESULT")
+x
+x$RESULT <- as.factor(x$RESULT)
+predict(learner, newdata = x, predict_type = "prob")
+}
+y <- c(10, 16, 10, 5, 12, 54, 33, 24, 9, 1)
+forecast(y)
 ```
