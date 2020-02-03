@@ -10,7 +10,7 @@ This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute
 # Exploring the DOJCS prisoner statistics report 2007-2018
 
 ## Introduction: 
-Corrections Victoria has published its Annual Prisoner Statistical Profile 2007-2018 on the DOJCS website .
+Corrections Victoria has published its Annual Prisoner Statistical Profile 2007-2018 on the DOJCS website.
 The aim of this paper is to perform exploratory data analysis to gain insight on a number of questions related to the recidivism , personal characteristics, demographics and crime type over the period. The approach is to tidy the data up so that visualisations and aggregations can then be used to gain insights.
 
 ##Research Questions: 

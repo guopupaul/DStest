@@ -3,6 +3,7 @@ title: "Supervised ML"
 output:
   html_document:
     df_print: paged
+  word_document: default
 ---
 ### Using Basketball boxscore elements and machine learning to identify winning team performance targets
 
@@ -204,7 +205,7 @@ res$aggregate(msrs)
 ```
 
 ## Benchmarking
-We are going to benchmark multiple learners on the task
+We are going to benchmark multiple classification learners on the task
 The benchmark will use the previously defined 10-fold cross-validation.
 ```{r}
 # experiments with learners
@@ -221,10 +222,13 @@ res
 mlr3viz::autoplot(res)
 
 ```
+The "log.reg" algorithm performs better than the other classification algortithms benchmarked.
 
 
+Here is a function that predicts wina and loss given an input in the form:
+c("DR", "FTA", "FTM", "ST", "TO", "X2PA", "X2PM", "X3PA", "X3PM", "RESULT")
 
-*************************************************************
+As an example, c(28, 20, 14, 8, 12, 50, 25, 24, 8, 1) gives the result below:
 ```{r}
 forecast <- function(x)  {
 x <- as.data.frame(t(x))
@@ -233,6 +237,6 @@ x
 x$RESULT <- as.factor(x$RESULT)
 predict(learner, newdata = x, predict_type = "prob")
 }
-y <- c(28, 20, 14, 8, 12, 50, 25, 24, 8, 1)
+y <- c(30, 20, 14, 8, 12, 50, 25, 24, 8, 1)
 forecast(y)
 ```
