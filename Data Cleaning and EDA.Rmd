@@ -7,7 +7,7 @@ output:
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 
-# Exploring the DOJCS prisoner statistics 2007-2018
+# Exploring the DOJCS prisoner statistics report 2007-2018
 
 ## Introduction: 
 Corrections Victoria has published its Annual Prisoner Statistical Profile 2007-2018 on the DOJCS website .

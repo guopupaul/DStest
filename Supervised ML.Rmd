@@ -7,7 +7,7 @@ output:
 ### Using Basketball boxscore elements and machine learning to identify winning team performance targets
 
 ## Introduction
-The fundamental question facing basketball teams in competition is "What do we have to do to win?". Typically, the coach's philosophy, gameplan, individual team member skills and abilities, overall team offensive performance and overall team defensive performance combine in varying ways to determine who wins. Data Analytics in professional levels of basketball has rapidly grown to quantify these factors in very sophisticated ways. The insights derived are actively used to modify style of play and performance targets to enable more likely wins.
+The fundamental question facing basketball teams in competition is "What do we have to do to win?". Typically, the coach's philosophy, gameplan, individual team member skills/abilities, overall team offensive performance and overall team defensive performance combine in varying ways to determine who wins. Data Analytics in professional levels of basketball has rapidly grown to quantify these factors in very sophisticated ways. The insights derived are actively used to modify style of play and performance targets to enable more likely wins.
 
 I'm an assitant coach one level below professional basketball. Applying current cutting edge techniques in basketball analytics at my level is problematic for two reasons:
 1. the resourcing to collect and analyse the required detailed data in our league is not readily available, and
