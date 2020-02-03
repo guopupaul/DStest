@@ -1,28 +1,31 @@
 ---
 title: "Supervised ML"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
-###Using Basketball boxscore elements and machine learning to identify winning team performance targets
+### Using Basketball boxscore elements and machine learning to identify winning team performance targets
 
-##Introduction
+## Introduction
 The fundamental question facing basketball teams in competition is "what do we have to do to win?". Typically, the coach's philosophy and gameplan, individual team member skills and abilities, overall team offensive performance and overall team defensive performance combine in varying ways to determine who wins. Data Analytics in professional levels of basketball has rapidly grown to quantify these factors in very sophisticated ways. The insights derived are actively used to modify style of play and performance targets to enable more likely wins.
 
 I'm an assitant coach one level below professional basketball. Applying current cutting edge techniques in basketball analytics at my level is problematic for two reasons:
 1. the resourcing to collect and analyse the required detailed data in our league is not readily available, and
 2. the direct applicability of insights from professional basketball to our league is uncertain.
 
-What is readily available in our league is a detailed boxscore for each game. This will be the data source.
+What is readily available in our league is a detailed boxscore for each game. This will be the data source. 135 games were played in a season with 135 "win" boxscores and 135 "loss" boxscores. there are no NA values.
 
-##Aim
+##  Aim
 To add some rigor to choosing an optimal style of play and setting effective performance targets, this paper will use a set of game boxscores and machine learning techniques to investigate and model key performance targets for a winning game. 
 
-##Method
-1. Conduct EDA to identify any high level insights from the boxscores
-2. Conduct a logistic regression for a response variable of "WIN/LOSS" as a function of all dependent variables
-2. Using PCA, hierarchical clustering, and random forest to reduce the number of dependent variables to avoid overfitting and validate a final model which would be easier to use
-4. Calculate threshold values for the key performance targets that the model says will lead to a "WIN" 
+## Method
+1. Investigate data for outlier "win" and"loss" scores
+2. Using PCA, reduce the number of dependent variables to avoid overfitting and validate a final model which would be easier to use
+3. Using machine learning, develop a logistic regression model and evaluate its performance
+4. Benchmark the logistic regression model against a range of other classification models
+4. Create a function that uses target values for the key performance variables to predict the likelihood of a "win" 
 
-##The data
+## The data
 Load the following packages:
 ```{r message = FALSE}
 library(tidyverse)
@@ -52,7 +55,7 @@ qqline(l$TP)
 summary(w$TP)
 summary(l$TP)
 ```
-Use inter quartile ranges to determine if any scores are outliers
+The boxscores approximate normal distributions. We use inter quartile ranges to determine if any scores are outliers
 ```{r}
 #win scores too high
 w_quartiles <- quantile(w$TP)
@@ -67,9 +70,9 @@ lower_th <- l_quartiles[2] -
 loutliers <- sort(unique(l$TP[w$TP < lower_th]))
 loutliers
 ```
-the above shows there are no statistically significant outliers in the data.
+The above shows there are no statistically significant outliers in the data.
 
-##Data pre-processing
+## Data pre-processing
 To prepare a data frame with required numeric variables for analysis:
 ```{r}
 #remove unneeded categorical variables and aggregate variables
@@ -80,12 +83,9 @@ mutate(RESULT = ifelse(RESULT == "WIN", 1, 0))
 boxscores.trim <- sapply(boxscores.trim, as.numeric)
 ```
 
-
-
-##Feature selection
+## Feature selection
 14 variables is too many, let's look for key values
-##Principal Component Analysis
-
+## Principal Component Analysis
 ```{r}
 # remove response variable
 boxscores.pca <- boxscores.trim[, 1:13]
@@ -94,7 +94,7 @@ res.pca <- PCA(boxscores.pca, graph = FALSE)
 eig.val <- get_eigenvalue(res.pca)
 eig.val
 ```
-An eigenvalue > 1 indicates that PCs account for more variance than accounted by one of the original variables in standardized data. This is commonly used as a cutoff point for which PCs are retained. This holds true only when the data are standardized.
+An eigenvalue > 1 indicates that PCs account for more variance than accounted by one of the original variables in standardized data. This is commonly used as a cutoff point for which PCs are retained. This holds true only when the data are standardized. The function "PCA" does this automatically. 
 
 In this case, 5 dimensions > 1 and cover 70% of the variance.
 An alternative method to determine the number of principal components is to look at a Scree Plot, which is the plot of eigenvalues ordered from largest to the smallest. The number of component is determined at the point, beyond which the remaining eigenvalues are all relatively small and of comparable size
@@ -122,26 +122,26 @@ data.frame()
 summary(Boxscores)
 
 ```
-##Machine Learning
-```{r setup, include=FALSE}
+## Machine Learning
+```{r setup}
 set.seed(88)
 if (!interactive()) {
   lgr::get_logger("mlr3")$set_threshold("warn")
 }
 ```
-#Build a task
+# Build a task
 ```{r}
 #first make response variable a factor for classification purposes
 Boxscores$RESULT <- as.factor(Boxscores$RESULT)
 Boxscores_tsk <- TaskClassif$new(id = "Boxscores", backend = Boxscores, target = "RESULT", positive = "1")
 Boxscores_tsk
 ```
-#define training(75%) and test(25%) sets
+# Define training(75%) and test(25%) sets
 ```{r}
 train_set <- sample(Boxscores_tsk$nrow, 0.75 * Boxscores_tsk$nrow)
 test_set <- setdiff(seq_len(Boxscores_tsk$nrow), train_set)
 ```
-#Define a logistic regression learner
+# Define a logistic regression learner
 ```{r}
 # Check available learners
 as.data.table(mlr_learners)
@@ -169,16 +169,16 @@ Use the learner that now stores the model to predict the label on the `Boxscores
 pred <- lrn$predict(task = Boxscores_tsk, row_ids = test_set)
 #confusion matrix
 pred$confusion
+autoplot(pred)
 ```
 
-# chose different measures to score the prediction
+# choose different measures to score the prediction
 ```{r}
 mlr_measures
 msrs = lapply(c("classif.auc", "classif.precision", "classif.recall"), msr)
 pred$score(measures = msrs)
 ```
 ## Resampling
-
 To automate the test train split we can use resample. Therefore we need a resampling strategy.
 ```{r}
 # show available resampling objects
@@ -204,11 +204,9 @@ res$aggregate(msrs)
 ```
 
 ## Benchmarking
-
 We are going to benchmark multiple learners on the task
 The benchmark will use the previously defined 10-fold cross-validation.
 ```{r}
-
 # experiments with learners
 design <- benchmark_grid(
   tasks = Boxscores_tsk, 
@@ -235,6 +233,6 @@ x
 x$RESULT <- as.factor(x$RESULT)
 predict(learner, newdata = x, predict_type = "prob")
 }
-y <- c(10, 16, 10, 5, 12, 54, 33, 24, 9, 1)
+y <- c(28, 20, 14, 8, 12, 50, 25, 24, 8, 1)
 forecast(y)
 ```
