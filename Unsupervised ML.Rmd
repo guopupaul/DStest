@@ -1,0 +1,45 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+Objective: Build a regressor that recommends the “crew” size for potential ship buyers.
+
+1. Read the file and display columns.
+```{r message = FALSE}
+library(tidyverse)
+library(mlr3verse)
+library(readxl)
+library("FactoMineR")
+library("factoextra")
+library("corrplot")
+library(class)
+library(outliers)
+```
+
+```{r}
+info <- read_excel("ship info.csv",col_names = TRUE)
+glimpse(info)
+```
+2. Calculate basic statistics of the data (count, mean, std, etc) and examine data and state your observations.
+3. Select columns that will be probably important to predict “crew” size.
+4. If you removed columns explain why you removed those.
+5. Use one-hot encoding for categorical features.
+6. Create training and testing sets (use 60% of the data for the training and reminder for testing).
+7. Build a machine learning model to predict the ‘crew’ size.
+8. Calculate the Pearson correlation coefficient for the training set and testing data sets.
+9. Describe hyper-parameters in your model and how you would change them to improve the performance of the model.
+10.What is regularization? What is the regularization parameter in your model?
+11.Plot regularization parameter value vs Pearson correlation for the test and training sets, and see whether your model has bias problem or variance problem.
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
