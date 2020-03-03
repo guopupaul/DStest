@@ -8,7 +8,7 @@ output:
 ### Using Basketball boxscore elements and machine learning to identify winning team performance targets
 
 ## Introduction
-The fundamental question facing basketball teams in competition is "What do we have to do to win?". Typically, the coach's philosophy, gameplan, individual team member skills/abilities, overall team offensive performance and overall team defensive performance combine in varying ways to determine who wins. Data Analytics in professional levels of basketball has rapidly grown to quantify these factors in very sophisticated ways. The insights derived are actively used to modify style of play and performance targets to enable more likely wins.
+The fundamental question facing basketball teams in competition is "What do we have to do to win?". Typically, the coach's philosophy, gameplan, team member skills/abilities, overall team offensive performance and overall team defensive performance combine in varying ways to determine who wins. Data Analytics in professional levels of basketball has rapidly grown to quantify these factors in very sophisticated ways. The insights derived are actively used to modify style of play and performance targets to enable more likely wins.
 
 I'm an assitant coach one level below professional basketball. Applying current cutting edge techniques in basketball analytics at my level is problematic for two reasons:
 1. the resourcing to collect and analyse the required detailed data in our league is not readily available, and
@@ -21,8 +21,8 @@ To add some rigor to choosing an optimal style of play and setting effective per
 
 ## Method
 1. Investigate data for outlier "win" and"loss" scores
-2. Using PCA, reduce the number of dependent variables to avoid overfitting and validate a final model which would be easier to use
-3. Using machine learning, develop a logistic regression model and evaluate its performance
+2. Using PCA, reduce the number of dependent variables to avoid overfitting and create a final model which would be easier to use
+3. Using machine learning, develop a model and evaluate its performance
 4. Benchmark the logistic regression model against a range of other classification models
 4. Create a function that uses target values for the key performance variables to predict the likelihood of a "win" 
 
@@ -35,7 +35,6 @@ library(readxl)
 library("FactoMineR")
 library("factoextra")
 library("corrplot")
-library(class)
 library(outliers)
 ```
 Here is the data read in:
@@ -43,38 +42,39 @@ Here is the data read in:
 boxscores <- read_excel("YL1 2019.xlsx", sheet = 2, range = "A1:Y271",col_names = TRUE)
 glimpse(boxscores)
 ```
-## Is this a normal distribution?
+## Is this a normal distribution? Are there outliers that should be excluded from analysis?
 ```{r}
-w <- boxscores %>% filter(RESULT == "WIN")
-l <- boxscores %>% filter(RESULT == "LOSS")
-hist(w$TP,breaks = 30,xlim=c(25,150),ylim=c(0,20),col="gray")
-qqnorm(w$TP)
-qqline(w$TP)
-hist(l$TP,breaks = 30,xlim=c(25,150),ylim=c(0,20),col="gray")
-qqnorm(l$TP)
-qqline(l$TP)
-summary(w$TP)
-summary(l$TP)
+#histogram of all final scores
+hist(boxscores$TP,breaks = 30,xlim=c(25,150),ylim=c(0,20),col="gray")
+qqnorm(boxscores$TP)
+qqline(boxscores$TP)
+summary(boxscores$TP)
 ```
-The boxscores approximate normal distributions. We use inter quartile ranges to determine if any scores are outliers
+The boxscores approximate normal distributions. There appear to be two scores at the high end that are outliers. Inter quartile ranges werev used to confirm if they were actual outliers.
 ```{r}
-#win scores too high
-w_quartiles <- quantile(w$TP)
-upper_th <- w_quartiles[4] + 
-   1.5 * (w_quartiles[4] - w_quartiles[2])
-houtliers <- sort(unique(w$TP[w$TP > upper_th]))
+#gamescores too high
+TP_quartiles <- quantile(boxscores$TP)
+upper_th <- TP_quartiles[4] + 
+   1.5 * (TP_quartiles[4] - TP_quartiles[2])
+houtliers <- sort(unique(boxscores$TP[boxscores$TP > upper_th]))
 houtliers
-#lose scores too low
-l_quartiles <- quantile(l$TP)
-lower_th <- l_quartiles[2] - 
-   1.5 * (l_quartiles[4] - l_quartiles[2])
-loutliers <- sort(unique(l$TP[w$TP < lower_th]))
+#gamescores too low
+lower_th <- TP_quartiles[2] -
+   1.5 * (TP_quartiles[4] - TP_quartiles[2])
+loutliers <- sort(unique(boxscores$TP[boxscores$TP < lower_th]))
 loutliers
 ```
-The above shows there are no statistically significant outliers in the data.
+Gamescores of 127 and 133 are then excluded
+```{r}
+boxscores <- boxscores %>% filter(TP != 127, 133)
+glimpse(boxscores)
+```
 
 ## Data pre-processing
-To prepare a data frame with required numeric variables for analysis:
+To prepare a data frame with required numeric variables for analysis, we first discount variables that has no correlation connection to a win-loss result for a single game.. This includes:
+ROUND, TEAM, NAME, MIN
+Some variables are aggregates of other variables or calculations based on other variables. They were also removed:
+"3P%", "2P%", "FT%", TR, PTOS, PITP, "2CPS", TP
 ```{r}
 #remove unneeded categorical variables and aggregate variables
 boxscores.trim <- boxscores %>% select(-c(RND, TEAM, "3P%", "2P%", "FT%", TR, PTOS, PITP, "2CPS", MIN, TP)) %>%
@@ -85,8 +85,8 @@ boxscores.trim <- sapply(boxscores.trim, as.numeric)
 ```
 
 ## Feature selection
-14 variables is too many, let's look for key values
-## Principal Component Analysis
+The matrix "boxscores.trim" has 14 variables. A model with 14 inputs is not helpful to coaches, and also may lead to an overfitted model. Some variables may play a key contributing role more than others. PrincipalComponent Analysis was used to assess this.
+# Principal Component Analysis
 ```{r}
 # remove response variable
 boxscores.pca <- boxscores.trim[, 1:13]
@@ -225,7 +225,7 @@ mlr3viz::autoplot(res)
 The "log.reg" algorithm performs better than the other classification algortithms benchmarked.
 
 
-Here is a function that predicts wina and loss given an input in the form:
+Here is a function that predicts win and loss given an input in the form:
 c("DR", "FTA", "FTM", "ST", "TO", "X2PA", "X2PM", "X3PA", "X3PM", "RESULT")
 
 As an example, c(28, 20, 14, 8, 12, 50, 25, 24, 8, 1) gives the result below:
