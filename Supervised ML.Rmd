@@ -66,13 +66,13 @@ loutliers
 ```
 Gamescores of 127 and 133 are then excluded
 ```{r}
-boxscores <- boxscores %>% filter(TP != 127, 133)
+boxscores <- boxscores %>% filter(TP != 127) %>% filter(TP != 133)
 glimpse(boxscores)
 ```
 
 ## Data pre-processing
-To prepare a data frame with required numeric variables for analysis, we first discount variables that has no correlation connection to a win-loss result for a single game.. This includes:
-ROUND, TEAM, NAME, MIN
+To prepare a data frame with required numeric variables for analysis, we first discount variables that has no correlation or connection to a win-loss result for a single game.. This includes:
+ROUND, TEAM, MIN
 Some variables are aggregates of other variables or calculations based on other variables. They were also removed:
 "3P%", "2P%", "FT%", TR, PTOS, PITP, "2CPS", TP
 ```{r}
@@ -85,7 +85,7 @@ boxscores.trim <- sapply(boxscores.trim, as.numeric)
 ```
 
 ## Feature selection
-The matrix "boxscores.trim" has 14 variables. A model with 14 inputs is not helpful to coaches, and also may lead to an overfitted model. Some variables may play a key contributing role more than others. PrincipalComponent Analysis was used to assess this.
+The matrix "boxscores.trim" has 14 variables. A model with 14 inputs is not helpful to coaches, and also may lead to an overfitted model. Some variables may play a key contributing role more than others. Principal Component Analysis was used to assess this.
 # Principal Component Analysis
 ```{r}
 # remove response variable
@@ -240,3 +240,8 @@ predict(learner, newdata = x, predict_type = "prob")
 y <- c(30, 20, 14, 8, 12, 50, 25, 24, 8, 1)
 forecast(y)
 ```
+****************************************************************************************************
+
+
+
+
